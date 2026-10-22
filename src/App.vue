@@ -1,17 +1,12 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { onMounted } from 'vue';
 import OrgChart from './components/OrgChart.vue';
 import AnalyticsView from './components/AnalyticsView.vue';
 import SearchBox from './components/SearchBox.vue';
 import { useOrg } from './store.js';
 import { fmtInt } from './lib/format.js';
 
-const { org, view, error, stats, loadDefault, loadCSV, expandTo } = useOrg();
-const zoom = ref(1);
-
-function setZoom(delta) {
-  zoom.value = Math.min(1.4, Math.max(0.4, +(zoom.value + delta).toFixed(2)));
-}
+const { org, view, error, stats, zoom, loadDefault, loadCSV, expandTo, setZoom, fitToScreen } = useOrg();
 
 function onFile(e) {
   const file = e.target.files?.[0];
@@ -69,13 +64,15 @@ onMounted(() => setTimeout(loadDefault, 30));
     <div v-if="error" class="text-[12.5px]" style="color: var(--bad)">{{ error }}</div>
 
     <div v-if="view === 'chart' && org" class="flex flex-wrap items-center gap-2 ml-auto">
-      <button class="btn" @click="expandTo(1)">Collapse all</button>
+      <button class="btn" @click="expandTo(0)">Collapse all</button>
+      <button class="btn" @click="expandTo(1)">Expand 1 level</button>
       <button class="btn" @click="expandTo(2)">Expand 2 levels</button>
-      <button class="btn" @click="expandTo(3)">Expand 3 levels</button>
-      <div class="flex items-center gap-1 ml-1">
+      <!-- Zoom only applies to the wide tree layout, so it's hidden on phones -->
+      <div class="zoom-controls items-center gap-1 ml-1">
         <button class="btn" aria-label="Zoom out" @click="setZoom(-0.1)">−</button>
         <span class="num text-xs w-11 text-center">{{ Math.round(zoom * 100) }}%</span>
         <button class="btn" aria-label="Zoom in" @click="setZoom(0.1)">+</button>
+        <button class="btn" @click="fitToScreen">Fit</button>
       </div>
     </div>
   </div>
@@ -83,6 +80,6 @@ onMounted(() => setTimeout(loadDefault, 30));
   <div v-if="!org" class="flex-1 grid place-items-center text-muted">Loading Giga Corp…</div>
 
   <!-- v-show keeps the chart's expanded state and scroll position when switching tabs -->
-  <OrgChart v-show="org && view === 'chart'" v-model:zoom="zoom" />
+  <OrgChart v-show="org && view === 'chart'" />
   <AnalyticsView v-if="org && view === 'analytics' && stats" />
 </template>

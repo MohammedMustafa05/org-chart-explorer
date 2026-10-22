@@ -3,8 +3,7 @@ import { ref } from 'vue';
 import OrgNode from './OrgNode.vue';
 import { useOrg } from '../store.js';
 
-const { org, canvasEl } = useOrg();
-const zoom = defineModel('zoom', { default: 1 });
+const { org, canvasEl, zoom } = useOrg();
 
 // Drag-to-pan for mouse; touch keeps native scrolling.
 const dragging = ref(false);

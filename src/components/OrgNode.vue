@@ -28,7 +28,9 @@ const isHighlighted = computed(() => highlight.value === props.node.id);
       </div>
 
       <dl v-if="isManager" class="metrics">
-        <dt>Mgmt cost</dt><dd>{{ money(node.mgmt) }}</dd>
+        <dt>Descendants</dt><dd>{{ fmtInt(node.desc) }}</dd>
+        <dt>Non-leaf descendants</dt><dd>{{ fmtInt(node.nonLeaf) }}</dd>
+        <dt class="sep">Mgmt cost</dt><dd class="sep">{{ money(node.mgmt) }}</dd>
         <dt>IC cost</dt><dd>{{ money(node.ic) }}</dd>
         <dt>Total cost</dt><dd>{{ money(node.total) }}</dd>
         <dt>Mgmt cost ratio</dt><dd>{{ ratio(node) }}</dd>
@@ -38,18 +40,13 @@ const isHighlighted = computed(() => highlight.value === props.node.id);
       </dl>
 
       <div v-if="isManager" class="actions">
-        <button
-          class="toggle"
-          :aria-expanded="open"
-          :title="`${node.children.length} direct reports`"
-          @click="toggle(node)"
-        >
-          <span><span class="num">{{ fmtInt(node.desc) }}</span> in org · <span class="num">{{ fmtInt(node.nonLeaf) }}</span> mgrs</span>
+        <button class="toggle" :aria-expanded="open" @click="toggle(node)">
+          <span>{{ open ? 'Hide' : 'Show' }} <span class="num">{{ fmtInt(node.children.length) }}</span> {{ node.children.length === 1 ? 'report' : 'reports' }}</span>
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
             <path d="M2 3.5 5 6.5 8 3.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" />
           </svg>
         </button>
-        <button class="iconbtn" title="Analyze team" aria-label="Analyze this team's cost" @click="analyze(node)">
+        <button class="iconbtn" title="Analyze this team's cost" aria-label="Analyze this team's cost" @click="analyze(node)">
           <svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true">
             <path d="M2 11V7M6.5 11V2M11 11V5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           </svg>

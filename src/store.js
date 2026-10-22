@@ -19,15 +19,21 @@ const scopeId = ref(null);
 const error = ref('');
 // Set by OrgChart so actions can scroll the canvas
 const canvasEl = ref(null);
+const zoom = ref(1);
+
+// Below this width the chart switches to a vertical, indented list (see style.css)
+const NARROW = 640;
+const isNarrow = () => typeof window !== 'undefined' && window.innerWidth <= NARROW;
 
 function load(o) {
   org.value = markRaw(o);
   expanded.clear();
   for (const k in limits) delete limits[k];
+  // Start like the brief's example: the top person with their direct reports showing
   expanded.add(o.root.id);
   scopeId.value = o.root.id;
   highlight.value = null;
-  nextTick(centerCanvas);
+  nextTick(fitToScreen);
 }
 
 function loadSample() {
@@ -67,6 +73,23 @@ function centerCanvas() {
   if (el) el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
 }
 
+function setZoom(delta) {
+  zoom.value = Math.min(1.4, Math.max(0.4, +(zoom.value + delta).toFixed(2)));
+}
+
+/** Zoom so the open part of the chart fits the window width (desktop only). */
+function fitToScreen() {
+  const el = canvasEl.value;
+  const tree = el?.querySelector('.tree');
+  zoom.value = 1;
+  if (!tree || isNarrow()) return;
+  nextTick(() => {
+    const fit = el.clientWidth / tree.scrollWidth;
+    zoom.value = Math.max(0.6, Math.min(1, Math.floor(fit * 100) / 100));
+    nextTick(centerCanvas);
+  });
+}
+
 function toggle(n) {
   expanded.has(n.id) ? expanded.delete(n.id) : expanded.add(n.id);
 }
@@ -80,20 +103,19 @@ function analyze(n) {
   view.value = 'analytics';
 }
 
-/** Expand every manager above `depth` levels (1 = only the root card). */
-function expandTo(depth) {
+/** Show `levels` levels of reports under the top person (0 = only the top card). */
+function expandTo(levels) {
   expanded.clear();
   const root = org.value.root;
   const stack = [root];
   while (stack.length) {
     const n = stack.pop();
-    if (n.level - root.level < depth - 1 && n.children.length) {
+    if (n.level - root.level < levels && n.children.length) {
       expanded.add(n.id);
       for (const c of n.children) stack.push(c);
     }
   }
-  if (depth === 1) expanded.add(root.id);
-  nextTick(centerCanvas);
+  nextTick(fitToScreen);
 }
 
 /** Expand the path to a person, make sure they're within the shown children, and scroll to them. */
@@ -136,8 +158,8 @@ const stats = computed(() => (scope.value ? computeStats(scope.value) : null));
 
 export function useOrg() {
   return {
-    org, view, expanded, limits, highlight, scopeId, error, canvasEl,
+    org, view, expanded, limits, highlight, scopeId, error, canvasEl, zoom,
     scope, scopePath, stats,
-    loadDefault, loadSample, loadCSV, toggle, showMore, analyze, expandTo, reveal, search,
+    loadDefault, loadSample, loadCSV, toggle, showMore, analyze, expandTo, reveal, search, setZoom, fitToScreen,
   };
 }
