@@ -184,7 +184,7 @@ function showInChart(v) {
             <div
               v-for="d in depts"
               :key="d.name"
-              class="grid grid-cols-[110px_1fr_56px] items-center gap-3 text-sm"
+              class="grid grid-cols-[150px_1fr_56px] items-center gap-3 text-sm"
               @mousemove="showTip($event, d.name, [
                 { label: 'Management', value: moneyFull(d.mgmtCost), color: MGMT_COLOR },
                 { label: 'IC', value: moneyFull(d.icCost), color: IC_COLOR },
@@ -305,10 +305,10 @@ function showInChart(v) {
         <h2 class="font-semibold">Headcount by department and layer</h2>
         <p class="mb-3 text-xs text-ink-2">Spot which departments are deep, and where their people sit</p>
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[560px] border-separate text-xs" style="border-spacing: 2px">
+          <table class="w-full min-w-[560px] table-fixed border-separate text-xs" style="border-spacing: 2px">
             <thead>
               <tr>
-                <th class="w-32 text-left font-medium text-ink-3"></th>
+                <th class="w-44 text-left font-medium text-ink-3"></th>
                 <th v-for="i in heatLayers" :key="i" class="tabular font-medium text-ink-3">L{{ i }}</th>
               </tr>
             </thead>

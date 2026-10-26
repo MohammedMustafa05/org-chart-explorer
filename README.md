@@ -96,8 +96,9 @@ salary of every descendant".
 
 ## Data
 
-`public/giga-corp.csv` is loaded on start. **Replace it with the Giga Corp
-export**, or use **Load CSV** or drag and drop a file onto the page.
+`public/giga-corp.csv` is the Giga Corp file provided with the assessment:
+40,000 people, one CEO, nine layers. It loads on start. To try another org,
+use **Load CSV** or drag and drop a file onto the page.
 
 **Column detection.** Columns are detected from common header names:
 - Employee Id / Email
@@ -111,8 +112,12 @@ export**, or use **Load CSV** or drag and drop a file onto the page.
 Salaries like `$120,000` are parsed. If the ID or manager column can't be
 recognised, the app asks you to map the columns.
 
-**Sample data.** The bundled file is a deterministic 40,001-person sample made
-by `npm run generate-data`, so the app runs before the real file is added.
+**Robustness.** Duplicate IDs, unknown managers and reporting cycles are
+handled rather than crashing. Several top-level people are joined under one
+company node.
+
+**Synthetic data.** `npm run generate-data` writes a deterministic synthetic
+org instead, for testing other shapes. It overwrites the file above.
 
 ## Structure
 

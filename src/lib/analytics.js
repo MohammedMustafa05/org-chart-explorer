@@ -3,8 +3,9 @@ import { forEachInSubtree, managementCostRatio } from './hierarchy.js'
 export const SPAN_BUCKETS = [
   { label: '1', min: 1, max: 1 },
   { label: '2', min: 2, max: 2 },
-  { label: '3–5', min: 3, max: 5 },
-  { label: '6–8', min: 6, max: 8 },
+  { label: '3', min: 3, max: 3 },
+  { label: '4', min: 4, max: 4 },
+  { label: '5–8', min: 5, max: 8 },
   { label: '9–12', min: 9, max: 12 },
   { label: '13+', min: 13, max: Infinity },
 ]
