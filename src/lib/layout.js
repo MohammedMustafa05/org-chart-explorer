@@ -1,12 +1,14 @@
 import { flextree } from 'd3-flextree'
 
-export const CARD_W = 232
-export const CARD_H = 124
+export const CARD_W = 236
+export const MANAGER_H = 288 // identity, three tag rows and four cost pills
+export const IC_H = 168 // identity, three tag rows and salary
+export const AVATAR = 44 // sits half above the card's top edge
 export const GAP_X = 20 // between sibling cards
-export const GAP_Y = 64 // between a manager and their reports
+export const GAP_Y = 72 // between a manager and their reports (includes the avatar overhang)
 const GROUP_PAD = 14
-const GROUP_HEAD = 30 // label row inside an IC group
-const GROUP_GAP = 14 // between cards inside an IC group
+const GROUP_HEAD = 30 + AVATAR / 2 // label row inside an IC group, plus room for the first avatar
+const GROUP_GAP = 14 + AVATAR / 2 // between cards inside an IC group
 
 /**
  * Lays out the expanded part of the org with variable-size nodes.
@@ -20,7 +22,7 @@ const GROUP_GAP = 14 // between cards inside an IC group
  * Returns world-space boxes (left/top) for cards, groups and connector links.
  */
 export function layoutOrg(o, isExpanded) {
-  const rootItem = makeCard(o.root)
+  const rootItem = makeCard(o, o.root)
   const stack = [rootItem]
   while (stack.length) {
     const item = stack.pop()
@@ -37,7 +39,7 @@ export function layoutOrg(o, isExpanded) {
     if (leaves.length === 1) managers.push(leaves.pop())
     if (leaves.length > 1) item.children.push(makeGroup(v, leaves))
     for (const m of managers) {
-      const child = makeCard(m)
+      const child = makeCard(o, m)
       item.children.push(child)
       stack.push(child)
     }
@@ -66,7 +68,7 @@ export function layoutOrg(o, isExpanded) {
     maxX = Math.max(maxX, left + d.boxW)
     maxY = Math.max(maxY, top + d.boxH)
     if (d.kind === 'card') {
-      const box = { v: d.v, left, top, w: CARD_W, h: CARD_H }
+      const box = { v: d.v, left, top, w: CARD_W, h: d.boxH }
       cards.push(box)
       pos.set(d.v, box)
     } else {
@@ -77,9 +79,9 @@ export function layoutOrg(o, isExpanded) {
         const box = {
           v,
           left: left + GROUP_PAD + col * (CARD_W + GROUP_GAP),
-          top: top + GROUP_HEAD + row * (CARD_H + GROUP_GAP),
+          top: top + GROUP_HEAD + row * (IC_H + GROUP_GAP),
           w: CARD_W,
-          h: CARD_H,
+          h: IC_H,
           grouped: true,
         }
         cards.push(box)
@@ -93,24 +95,25 @@ export function layoutOrg(o, isExpanded) {
         child: d.kind === 'card' ? d.v : -1,
         manager: p.data.v,
         x1: p.x,
-        y1: p.y + CARD_H,
+        y1: p.y + p.data.boxH,
         x2: n.x,
-        y2: top,
+        y2: d.kind === 'card' ? top - AVATAR / 2 : top,
       })
     }
   })
 
-  return { cards, groups, links, pos, bounds: { minX, maxX, minY: 0, maxY } }
+  return { cards, groups, links, pos, bounds: { minX, maxX, minY: -AVATAR / 2, maxY } }
 }
 
-function makeCard(v) {
-  return { kind: 'card', v, w: CARD_W + GAP_X, h: CARD_H + GAP_Y, boxW: CARD_W, boxH: CARD_H }
+function makeCard(o, v) {
+  const h = o.childCount[v] > 0 ? MANAGER_H : IC_H
+  return { kind: 'card', v, w: CARD_W + GAP_X, h: h + GAP_Y, boxW: CARD_W, boxH: h }
 }
 
 function makeGroup(manager, leaves) {
   const cols = leaves.length <= 4 ? 1 : leaves.length <= 16 ? 2 : leaves.length <= 45 ? 3 : 4
   const rows = Math.ceil(leaves.length / cols)
   const boxW = GROUP_PAD * 2 + cols * CARD_W + (cols - 1) * GROUP_GAP
-  const boxH = GROUP_HEAD + rows * CARD_H + (rows - 1) * GROUP_GAP + GROUP_PAD
+  const boxH = GROUP_HEAD + rows * IC_H + (rows - 1) * GROUP_GAP + GROUP_PAD
   return { kind: 'group', v: -1, manager, leaves, cols, w: boxW + GAP_X, h: boxH + GAP_Y, boxW, boxH }
 }

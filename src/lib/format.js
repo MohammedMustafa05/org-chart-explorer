@@ -31,3 +31,9 @@ export function onColor(hex) {
     .reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0)
   return (lum + 0.05) / 0.05 > 1.05 / (lum + 0.05) ? '#0b0b0b' : '#ffffff'
 }
+
+// Mix a hex colour with white; `amount` is how much of the colour remains
+export function tint(hex, amount) {
+  const mix = (i) => Math.round(255 - (255 - parseInt(hex.slice(i, i + 2), 16)) * amount)
+  return `#${[1, 3, 5].map((i) => mix(i).toString(16).padStart(2, '0')).join('')}`
+}

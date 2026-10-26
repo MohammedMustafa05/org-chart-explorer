@@ -1,12 +1,14 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, shallowRef } from 'vue'
 import { org, ui, expandedVersion, isExpanded, toggle, select, collapseAll, expandNextLevel } from '../lib/store.js'
-import { layoutOrg, CARD_W, CARD_H, GAP_Y } from '../lib/layout.js'
+import { layoutOrg, CARD_W, GAP_Y } from '../lib/layout.js'
 import { pathTo } from '../lib/hierarchy.js'
 import { count } from '../lib/format.js'
 import NodeCard from './NodeCard.vue'
 
 const viewport = ref(null)
+const toolbar = ref(null)
+let touched = false // once the user pans or zooms, resizes stop re-fitting
 const size = ref({ w: 800, h: 600 })
 const t = ref({ x: 0, y: 40, k: 0.85 }) // world -> screen transform
 const animate = ref(false)
@@ -91,7 +93,7 @@ function onPointerMove(e) {
     const [a, b] = [...pointers.values()]
     const k = clampK(pinch.k * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.d))
     zoomAround(pinch.cx, pinch.cy, k, { x: pinch.tx, y: pinch.ty, k: pinch.k })
-    moved = true
+    moved = touched = true
   } else if (dragStart) {
     const dx = e.clientX - dragStart.x
     const dy = e.clientY - dragStart.y
@@ -100,7 +102,10 @@ function onPointerMove(e) {
       moved = true
       viewport.value.setPointerCapture?.(e.pointerId)
     }
-    if (moved) t.value = { ...t.value, x: dragStart.tx + dx, y: dragStart.ty + dy }
+    if (moved) {
+      touched = true
+      t.value = { ...t.value, x: dragStart.tx + dx, y: dragStart.ty + dy }
+    }
   }
 }
 
@@ -125,6 +130,7 @@ function onClickCapture(e) {
 function onWheel(e) {
   e.preventDefault()
   animate.value = false
+  touched = true
   if (e.ctrlKey || e.metaKey) {
     const rect = viewport.value.getBoundingClientRect()
     zoomAround(e.clientX - rect.left, e.clientY - rect.top, clampK(t.value.k * Math.exp(-e.deltaY * 0.01)))
@@ -142,6 +148,7 @@ function zoomAround(sx, sy, k, from = t.value) {
 }
 
 function zoomBy(f) {
+  touched = true
   smooth()
   zoomAround(size.value.w / 2, size.value.h / 2, clampK(t.value.k * f))
 }
@@ -152,19 +159,23 @@ function smooth() {
   smooth.timer = setTimeout(() => (animate.value = false), 400)
 }
 
-function fit() {
+// Fit the whole expanded tree on screen, below the toolbar (two rows on phones)
+function fit(animated = true) {
   const b = layout.value.bounds
   const bw = b.maxX - b.minX
   const bh = b.maxY - b.minY
-  const k = clampK(Math.min((size.value.w - 48) / bw, (size.value.h - 120) / bh, 1))
-  smooth()
-  t.value = { k, x: (size.value.w - bw * k) / 2 - b.minX * k, y: 72 }
+  const top = (toolbar.value?.offsetHeight ?? 40) + 32
+  const k = clampK(Math.min((size.value.w - 32) / bw, (size.value.h - top - 64) / bh, 1))
+  touched = false
+  if (animated) smooth()
+  t.value = { k, x: (size.value.w - bw * k) / 2 - b.minX * k, y: top - b.minY * k }
 }
 
 function centerOn(v) {
   const box = layout.value.pos.get(v)
   if (!box) return
   const k = Math.max(t.value.k, 0.75)
+  touched = true
   smooth()
   t.value = { k, x: size.value.w / 2 - (box.left + box.w / 2) * k, y: size.value.h / 3 - (box.top + box.h / 2) * k }
 }
@@ -180,6 +191,7 @@ function onKey(e) {
   const map = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }
   if (map[e.key]) {
     e.preventDefault()
+    touched = true
     t.value = { ...t.value, x: t.value.x + map[e.key][0], y: t.value.y + map[e.key][1] }
   } else if (e.key === '+' || e.key === '=') zoomBy(1.2)
   else if (e.key === '-') zoomBy(1 / 1.2)
@@ -190,22 +202,15 @@ let ro
 onMounted(() => {
   ro = new ResizeObserver(([entry]) => {
     size.value = { w: entry.contentRect.width, h: entry.contentRect.height }
+    if (!touched) fit(false)
   })
   ro.observe(viewport.value)
   viewport.value.addEventListener('wheel', onWheel, { passive: false })
   const rect = viewport.value.getBoundingClientRect()
   size.value = { w: rect.width, h: rect.height }
-  // Start fitted to the screen, but never zoomed in past a comfortable 85%
-  const b = layout.value.bounds
-  const fitK = Math.min((rect.width - 48) / (b.maxX - b.minX), (rect.height - 120) / (b.maxY - b.minY), 0.85)
-  if (fitK >= 0.5) {
-    t.value = { k: fitK, x: rect.width / 2 - ((b.minX + b.maxX) / 2) * fitK, y: 72 }
-  } else {
-    // Too wide to fit legibly (e.g. a phone): keep cards readable and centre the root
-    const root = layout.value.pos.get(org.value.root)
-    t.value = { k: 0.6, x: rect.width / 2 - (root.left + CARD_W / 2) * 0.6, y: 120 }
-  }
-  if (ui.selected !== org.value.root) centerOn(ui.selected)
+  // Start with the whole chart on screen
+  fit(false)
+  if (ui.selected >= 0 && ui.selected !== org.value.root) centerOn(ui.selected)
 })
 onBeforeUnmount(() => {
   ro?.disconnect()
@@ -261,7 +266,7 @@ const shown = computed(() => layout.value.cards.length)
           v-for="c in visibleCards"
           :key="c.v"
           class="absolute"
-          :style="{ left: c.left + 'px', top: c.top + 'px', width: CARD_W + 'px', height: CARD_H + 'px' }"
+          :style="{ left: c.left + 'px', top: c.top + 'px', width: CARD_W + 'px', height: c.h + 'px' }"
         >
           <NodeCard :v="c.v" :expanded="isExpanded(c.v)" :selected="ui.selected === c.v" :compact="compact" @toggle="onToggle" @select="select" />
         </div>
@@ -269,17 +274,17 @@ const shown = computed(() => layout.value.cards.length)
     </div>
 
     <!-- toolbar -->
-    <div class="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start justify-between gap-2">
-      <div class="pointer-events-auto flex items-center gap-1 rounded-xl border border-black/10 bg-white/95 p-1 text-sm shadow-sm backdrop-blur">
+    <div ref="toolbar" class="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start justify-between gap-2">
+      <div class="pointer-events-auto flex items-center gap-1 rounded-xl border border-black/10 bg-white/95 p-1 text-sm shadow-sm">
         <button class="rounded-lg px-3 py-2 font-medium hover:bg-black/5 sm:py-1.5" @click="expandNextLevel()">Expand a level</button>
         <button class="rounded-lg px-3 py-2 font-medium hover:bg-black/5 sm:py-1.5" @click="collapseAll(); fit()">Collapse all</button>
       </div>
-      <div class="pointer-events-auto rounded-xl border border-black/10 bg-white/95 px-3 py-2 text-xs text-ink-2 shadow-sm backdrop-blur">
+      <div class="pointer-events-auto rounded-xl border border-black/10 bg-white/95 px-3 py-2 text-xs text-ink-2 shadow-sm">
         <span class="tabular font-semibold text-ink">{{ count(shown) }}</span> of {{ count(org.realCount) }} people shown
       </div>
     </div>
 
-    <div class="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-3 flex items-center gap-1 rounded-xl border border-black/10 bg-white/95 p-1 text-sm shadow-sm backdrop-blur">
+    <div class="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-3 flex items-center gap-1 rounded-xl border border-black/10 bg-white/95 p-1 text-sm shadow-sm">
       <button class="h-10 w-10 rounded-lg text-lg leading-none hover:bg-black/5 sm:h-8 sm:w-8" aria-label="Zoom out" @click="zoomBy(1 / 1.25)">−</button>
       <span class="tabular w-12 text-center text-xs text-ink-2">{{ Math.round(t.k * 100) }}%</span>
       <button class="h-10 w-10 rounded-lg text-lg leading-none hover:bg-black/5 sm:h-8 sm:w-8" aria-label="Zoom in" @click="zoomBy(1.25)">+</button>

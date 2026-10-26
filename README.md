@@ -12,11 +12,14 @@ npm test           # metric tests, incl. a brute-force check on the 40k file
 
 ## Views
 
-**Org chart.** Pan by dragging or scrolling, pinch or ⌘/Ctrl-scroll to zoom,
-and use the arrow keys, `+`/`-` and `0` (fit). Every card shows:
-- **Reports**: descendants.
-- **Managers**: non-leaf descendants.
-- **Org cost**.
+**Org chart.** Opens fitted to the screen. Pan by dragging or scrolling, pinch
+or ⌘/Ctrl-scroll to zoom, and use the arrow keys, `+`/`-` and `0` (fit). Cards
+follow the assessment's example, tinted by department:
+- Department, location and level.
+- Managers: non-leaf descendants ("managers below"), management cost, IC
+  cost, total cost and management cost ratio, plus a `direct / descendants`
+  pill that expands and collapses their reports.
+- Individual contributors: their salary.
 
 Expanding a manager keeps their card fixed on screen. Individual contributors
 who share a manager are packed into one team block rather than a single
