@@ -94,7 +94,7 @@ const color = computed(() => (p.value.virtual ? '#0b0b0b' : deptColor.get(p.valu
       <p v-else class="text-sm text-ink-2">Individual contributor — no one reports to {{ p.name.split(' ')[0] }}.</p>
 
       <div class="flex flex-wrap gap-2 pt-1">
-        <button class="rounded-lg border border-black/15 px-3 py-2 text-sm font-medium hover:border-ink sm:py-1.5" @click="ui.view = ui.view === 'list' ? 'list' : 'chart'; reveal(v)">Show in org</button>
+        <button class="rounded-lg border border-black/15 px-3 py-2 text-sm font-medium hover:border-ink sm:py-1.5" @click="ui.view = 'chart'; reveal(v)">Show in org</button>
         <button v-if="o.childCount[v] > 0" class="rounded-lg bg-ink px-3 py-2 text-sm font-medium text-white hover:bg-ink/85 sm:py-1.5" @click="analyze(v)">
           Analyze this org
         </button>

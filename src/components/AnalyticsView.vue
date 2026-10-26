@@ -16,6 +16,14 @@ const a = computed(() => computeAnalytics(o, scope.value, groupBy.value))
 const leader = computed(() => o.people[scope.value])
 const crumbs = computed(() => pathTo(o, scope.value))
 const setScope = (v) => (ui.scope = v)
+
+// A new scope is a new page: start it from the top, wherever the change came
+// from (treemap, icicle, breadcrumb, back button)
+const scroller = ref(null)
+watch(scope, () => {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  scroller.value?.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+})
 const dimLabel = computed(() => dims.find((d) => d.key === groupBy.value)?.label ?? 'Group')
 
 // ---- colour per group value: fixed slot order by company-wide headcount,
@@ -152,7 +160,7 @@ function showInChart(v) {
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto">
+  <div ref="scroller" class="h-full overflow-y-auto">
     <div class="mx-auto max-w-6xl space-y-4 px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:space-y-5 sm:py-5 md:px-6">
       <!-- scope -->
       <div class="flex flex-wrap items-end justify-between gap-3">
