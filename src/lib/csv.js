@@ -11,6 +11,9 @@ const ALIASES = {
   department: ['department', 'dept', 'function', 'team', 'division', 'businessunit'],
   location: ['location', 'office', 'city', 'country', 'site'],
   salary: ['salary', 'basesalary', 'annualsalary', 'compensation', 'pay', 'cost', 'totalcost'],
+  bonus: ['bonus', 'annualbonus', 'variablepay', 'incentive'],
+  entity: ['entity', 'legalentity', 'company', 'subsidiary'],
+  level: ['level', 'joblevel', 'grade', 'band'],
 }
 
 const norm = (h) => h.toLowerCase().replace(/[^a-z0-9]/g, '')

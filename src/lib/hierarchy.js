@@ -12,7 +12,8 @@
 /**
  * @param {Record<string, string>[]} rows  parsed CSV rows
  * @param {{id: string, manager: string, name?: string, title?: string,
- *          department?: string, location?: string, salary?: string}} cols
+ *          department?: string, location?: string, salary?: string,
+ *          bonus?: string, entity?: string, level?: string}} cols
  */
 export function buildOrg(rows, cols) {
   const warnings = { duplicateIds: 0, missingManagers: 0, cycles: 0, invalidSalaries: 0 }
@@ -39,6 +40,9 @@ export function buildOrg(rows, cols) {
       department: (cols.department && clean(row[cols.department])) || '',
       location: (cols.location && clean(row[cols.location])) || '',
       salary: Number.isNaN(salary) ? 0 : salary,
+      bonus: cols.bonus ? parseMoney(row[cols.bonus]) || 0 : 0,
+      entity: (cols.entity && clean(row[cols.entity])) || '',
+      level: (cols.level && clean(row[cols.level])) || '',
       virtual: false,
     })
   }
@@ -81,7 +85,7 @@ export function buildOrg(rows, cols) {
   let root = roots[0] ?? -1
   if (roots.length > 1) {
     root = n
-    people.push({ i: n, id: '__root__', name: 'Company', title: `${roots.length} top-level leaders`, department: '', location: '', salary: 0, virtual: true })
+    people.push({ i: n, id: '__root__', name: 'Company', title: `${roots.length} top-level leaders`, department: '', location: '', entity: '', level: '', salary: 0, bonus: 0, virtual: true })
     for (const r of roots) parent[r] = root
     parent[root] = -1
     n += 1

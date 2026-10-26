@@ -60,3 +60,25 @@ test('matches a brute-force count on the 40k sample', () => {
     assert.equal(Math.round(org.totalCost[v]), Math.round(total))
   }
 })
+
+test('agrees with d3-hierarchy stratify + sum on every node of the real file', async () => {
+  const { stratify } = await import('d3-hierarchy')
+  const { rows, cols: c } = parseCsv(readFileSync(new URL('../public/giga-corp.csv', import.meta.url), 'utf8'))
+  const org = buildOrg(rows, c)
+  const root = stratify()
+    .id((r) => r[c.id])
+    .parentId((r) => r[c.manager] || null)(rows)
+  // d3's sum() includes each node's own value, so subtract it back out
+  root.sum((r) => Number(r[c.salary]) || 0)
+  const index = new Map(org.people.map((p) => [p.id, p.i]))
+  let checked = 0
+  root.each((n) => {
+    const v = index.get(n.id)
+    const own = Number(n.data[c.salary]) || 0
+    const descendants = n.descendants().length - 1
+    assert.equal(org.descendants[v], descendants)
+    assert.ok(Math.abs(org.totalCost[v] - (n.value - own)) < 1e-3 * Math.max(1, n.value))
+    checked++
+  })
+  assert.equal(checked, org.realCount)
+})

@@ -34,18 +34,30 @@ keys expand and collapse rows.
 **Search.** Find anyone by name, title or department. The chart expands the
 path to them and centres on them.
 
-**Cost analytics (bonus).** Scoped to the whole company or any manager's org.
+**Cost analytics (bonus).** Modelled on the
+[Agentnoon chart library](https://docs.agentnoon.com/hub/chart-library) and
+scoped to the whole company or to any manager's org. Clicking a person drills
+in, and the breadcrumb climbs back up.
 - **KPI tiles:** total, management and IC cost, management cost ratio, average
   span of control, and layers.
-- **Where the money goes:** a treemap of each direct report's org, sized by
-  cost and shaded by management share. Click a tile to drill in.
-- **Cost by department:** management vs IC, stacked.
-- **Layer pyramid:** managers vs ICs at each layer, flagged as top-heavy,
+- **Org map:** two views of the same org.
+  - *Treemap:* each direct report's org, sized by cost and shaded by
+    management share.
+  - *Icicle:* the hierarchy as bands, built with `d3.partition`. Each row is a
+    layer and each width is that person's org cost. It is coloured by the
+    chosen grouping.
+- **Breakdown (Hub-style):** one chart at a time, grouped by **Department,
+  Entity, Location or Level**, with `#`/`%` and a **Show table** toggle.
+  - Headcount cost (management vs IC)
+  - Stacked cost (salary + bonus, from the CSV's Bonus column)
+  - Average span of control, with the org average marked
+  - Headcount heatmap (group × layer)
+  - Layers & span of control (group × span)
+- **Pyramid:** managers vs ICs at each layer, flagged as top-heavy,
   bottom-heavy or balanced.
-- **Span of control distribution.**
+- **Span of control distribution:** 1:1, 1:2, … 1:13+.
 - **Org design flags:** managers with a single report (possibly collapsible
   layers) and managers with 13+ reports.
-- **Headcount heatmap:** department × layer.
 - **Export CSV:** every person in scope, with all computed metrics.
 
 ## How the metrics are computed
@@ -70,8 +82,16 @@ icCost[p]             += (c is IC ? salary[c] : 0) + icCost[c]
 totalCost[p]          += salary[c] + totalCost[c]
 ```
 
-Every node's values are computed once at load, about 90 ms for 40k people, and
-read in O(1) afterwards. Expanding or collapsing never recalculates anything.
+Every node's values are computed once at load, about 140 ms for the 40k-person
+file, and read in O(1) afterwards. Expanding or collapsing never recalculates
+anything.
+
+**Checked against d3-hierarchy.** The test suite builds the same file with
+`d3.stratify()` + `node.sum()` and checks every node's descendants and total
+cost against the single pass. d3 is also used for layout: `partition`
+(icicle), `treemap`, and flextree for the org chart. Its node objects are a
+poor fit as the main store for 40k people, which is why the metrics live in
+typed arrays.
 
 **Rendering also scales.**
 - The chart lays out only the expanded part of the tree, with
