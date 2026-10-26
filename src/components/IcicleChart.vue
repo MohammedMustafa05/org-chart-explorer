@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { hierarchy, partition } from 'd3-hierarchy'
 import { org } from '../lib/store.js'
 import { childrenOf } from '../lib/hierarchy.js'
-import { count, money } from '../lib/format.js'
+import { count, money, onColor } from '../lib/format.js'
 import { showTip, hideTip } from '../lib/tooltip.js'
 
 // Icicle: the org chart as stacked bands. Each row is a layer, and each
@@ -55,7 +55,7 @@ function tip(e, c) {
       v-for="c in cells"
       :key="c.v"
       class="absolute overflow-hidden rounded-[3px] px-1.5 text-left text-[11px] leading-[44px] transition-[filter] hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
-      :style="{ left: (c.x / W) * 100 + '%', top: c.y + 'px', width: (c.w / W) * 100 + '%', height: c.h + 'px', background: colorOf(c.v), color: colorOf(c.v) === '#eda100' ? '#0b0b0b' : '#fff' }"
+      :style="{ left: (c.x / W) * 100 + '%', top: c.y + 'px', width: (c.w / W) * 100 + '%', height: c.h + 'px', background: colorOf(c.v), color: onColor(colorOf(c.v)) }"
       @click="org.childCount[c.v] > 0 && c.v !== scope ? emit('drill', c.v) : emit('pick', c.v)"
       @mousemove="tip($event, c)"
       @mouseleave="hideTip"

@@ -34,6 +34,10 @@ keys expand and collapse rows.
 **Search.** Find anyone by name, title or department. The chart expands the
 path to them and centres on them.
 
+**Links.** The URL holds the view, the selected person and the analytics
+scope (`#/analytics?scope=<employee id>`), so any view can be shared, and the
+browser's back button steps between views and scopes.
+
 **Cost analytics (bonus).** Modelled on the
 [Agentnoon chart library](https://docs.agentnoon.com/hub/chart-library) and
 scoped to the whole company or to any manager's org. Clicking a person drills

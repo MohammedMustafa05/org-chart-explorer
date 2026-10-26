@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, reactive, watch } from 'vue'
-import { org, ui, loadFromUrl, loadText, applyMapping, reveal, select } from './lib/store.js'
+import { org, ui, loadFromUrl, loadText, applyMapping, reveal, select, retryLoad, hashFor, applyHash } from './lib/store.js'
 import { count, money, initials } from './lib/format.js'
 import OrgChart from './components/OrgChart.vue'
 import OrgList from './components/OrgList.vue'
@@ -81,6 +81,30 @@ function onWindowKey(e) {
 }
 onMounted(() => window.addEventListener('keydown', onWindowKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKey))
+
+// ---- keep the URL in step: view and scope changes add a history entry,
+// selecting a person just rewrites the current one
+let lastKey = ''
+watch(
+  () => (ui.status === 'ready' ? hashFor() : null),
+  (h) => {
+    if (!h) return
+    const key = `${ui.view}:${ui.scope}`
+    const push = lastKey !== '' && key !== lastKey
+    lastKey = key
+    if (h !== location.hash) history[push ? 'pushState' : 'replaceState'](null, '', h)
+  },
+)
+onMounted(() => window.addEventListener('popstate', applyHash))
+onBeforeUnmount(() => window.removeEventListener('popstate', applyHash))
+
+const mb = (b) => (b / 1e6).toFixed(1)
+const loadingText = computed(() => {
+  const p = ui.progress
+  if (!p) return `Building the org for ${ui.fileName || 'Giga Corp'}…`
+  return p.total ? `Downloading ${ui.fileName}: ${mb(p.loaded)} of ${mb(p.total)} MB` : `Downloading ${ui.fileName}: ${mb(p.loaded)} MB`
+})
+
 const views = [
   ['chart', 'Org chart'],
   ['list', 'List'],
@@ -95,6 +119,8 @@ const views = [
     @dragleave.self="dragging = false"
     @drop.prevent="onDrop"
   >
+    <a href="#main" class="sr-only z-50 rounded-lg bg-ink px-3 py-2 text-sm font-medium text-white focus:not-sr-only focus:absolute focus:left-3 focus:top-3">Skip to content</a>
+
     <!-- header -->
     <header class="relative z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-black/10 bg-white px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] md:flex-nowrap md:gap-x-4">
       <div class="flex min-w-0 items-center gap-2.5">
@@ -103,7 +129,7 @@ const views = [
         </div>
         <div class="min-w-0 leading-tight">
           <div class="text-sm font-semibold">Giga Corp</div>
-          <div v-if="org" class="tabular text-[11px] text-ink-3">{{ count(org.realCount) }} people · {{ money(org.totalCost[org.root] + org.people[org.root].salary) }}</div>
+          <div v-if="org" class="tabular text-xs text-ink-3">{{ count(org.realCount) }} people<span class="hidden sm:inline"> · {{ money(org.totalCost[org.root] + org.people[org.root].salary) }}</span></div>
         </div>
       </div>
 
@@ -127,19 +153,25 @@ const views = [
             v-model="query"
             :disabled="ui.status !== 'ready'"
             type="search"
-            placeholder="Search people or teams"
+            placeholder="Search"
+            aria-label="Search people, titles or departments"
+            aria-autocomplete="list"
+            aria-controls="search-results"
+            :aria-activedescendant="searchOpen && results.length ? `search-option-${active}` : undefined"
             class="w-full rounded-lg border border-black/10 bg-plane py-2 pl-9 pr-3 text-base outline-none focus:border-ink/40 focus:bg-white focus-visible:outline-none sm:text-sm"
             role="combobox"
-            :aria-expanded="searchOpen && results.length > 0"
+            :aria-expanded="searchOpen && query.trim().length >= 2"
             @focus="searchOpen = true"
             @input="searchOpen = true; active = 0"
             @blur="searchOpen = false"
             @keydown="onSearchKey"
           />
         </div>
-        <ul v-if="searchOpen && results.length" class="absolute inset-x-3 top-full z-30 mt-1 overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-lg sm:inset-x-auto sm:right-0 sm:w-[22rem]" role="listbox">
+        <ul v-if="searchOpen && query.trim().length >= 2" id="search-results" class="absolute inset-x-3 top-full z-30 mt-1 overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-lg sm:inset-x-auto sm:right-0 sm:w-[22rem]" role="listbox">
+          <li v-if="!results.length" class="px-3 py-3 text-sm text-ink-2" role="option" aria-disabled="true">No one matches “{{ query.trim() }}”. Try a name, job title or department.</li>
           <li
             v-for="(v, i) in results"
+            :id="`search-option-${i}`"
             :key="v"
             class="flex cursor-pointer items-center gap-2.5 px-3 py-2.5 sm:py-2"
             :class="i === active ? 'bg-black/5' : ''"
@@ -169,19 +201,27 @@ const views = [
     </header>
 
     <!-- body -->
-    <main class="relative flex min-h-0 flex-1">
-      <div v-if="ui.status === 'loading' || ui.status === 'idle'" class="flex flex-1 items-center justify-center p-6 text-center text-sm text-ink-2">
-        <div class="flex items-center gap-3">
-          <span class="h-4 w-4 animate-spin rounded-full border-2 border-ink/20 border-t-ink" />
-          Building the hierarchy for {{ ui.fileName || 'Giga Corp' }}…
+    <main id="main" tabindex="-1" class="relative flex min-h-0 flex-1 outline-none">
+      <div v-if="ui.status === 'loading' || ui.status === 'idle'" class="flex flex-1 items-center justify-center p-6 text-center text-sm text-ink-2" role="status" aria-live="polite">
+        <div class="w-full max-w-xs">
+          <div class="flex items-center justify-center gap-3">
+            <span class="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-ink/20 border-t-ink motion-reduce:animate-none" aria-hidden="true" />
+            <span class="tabular">{{ loadingText }}</span>
+          </div>
+          <div v-if="ui.progress?.total" class="mt-3 h-1 overflow-hidden rounded-full bg-black/10" aria-hidden="true">
+            <div class="h-full origin-left bg-ink transition-transform duration-150" :style="{ transform: `scaleX(${ui.progress.loaded / ui.progress.total})` }" />
+          </div>
         </div>
       </div>
 
       <div v-else-if="ui.status === 'error'" class="flex flex-1 items-center justify-center p-6">
-        <div class="max-w-sm rounded-xl border border-black/10 bg-white p-6 text-center">
+        <div class="max-w-sm rounded-xl border border-black/10 bg-white p-6 text-center" role="alert">
           <p class="font-medium">Couldn't load the org</p>
           <p class="mt-1 text-sm text-ink-2">{{ ui.error }}</p>
-          <button class="mt-4 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white" @click="fileInput.click()">Choose a CSV</button>
+          <div class="mt-4 flex flex-wrap justify-center gap-2">
+            <button v-if="ui.source" class="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/85" @click="retryLoad">Try again</button>
+            <button class="rounded-lg border border-black/15 px-4 py-2 text-sm font-medium hover:border-ink" @click="fileInput.click()">Choose a CSV</button>
+          </div>
         </div>
       </div>
 
@@ -212,14 +252,14 @@ const views = [
         </div>
 
         <!-- details: bottom sheet on phones, overlay drawer on tablets, side panel on desktop -->
-        <transition enter-from-class="opacity-0" leave-to-class="opacity-0" enter-active-class="transition-opacity duration-200" leave-active-class="transition-opacity duration-200">
+        <transition enter-from-class="opacity-0" leave-to-class="opacity-0" enter-active-class="transition-opacity duration-200" leave-active-class="transition-opacity duration-150">
           <div v-if="panelOpen" class="fixed inset-0 z-30 bg-black/20 md:absolute lg:hidden" aria-hidden="true" @click="select(-1)" />
         </transition>
         <transition
           enter-from-class="translate-y-full md:translate-y-0 md:translate-x-full"
           leave-to-class="translate-y-full md:translate-y-0 md:translate-x-full"
-          enter-active-class="transition-transform duration-200"
-          leave-active-class="transition-transform duration-200"
+          enter-active-class="transition-transform duration-200 ease-out"
+          leave-active-class="transition-transform duration-150 ease-in"
         >
           <div
             v-if="panelOpen"

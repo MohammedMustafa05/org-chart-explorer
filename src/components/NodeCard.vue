@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { org, deptColor } from '../lib/store.js'
-import { count, money, initials, OTHER } from '../lib/format.js'
+import { count, money, initials, onColor, OTHER } from '../lib/format.js'
 
 const props = defineProps({
   v: { type: Number, required: true },
@@ -19,14 +19,20 @@ const directs = computed(() => o.childCount[props.v])
 
 <template>
   <div
-    class="group relative h-full w-full cursor-pointer rounded-xl border bg-white shadow-sm transition-shadow hover:shadow-md"
+    class="group relative h-full w-full rounded-xl border bg-white shadow-sm transition-shadow hover:shadow-md"
     :class="selected ? 'border-ink ring-2 ring-ink/80' : 'border-black/10'"
-    @click.stop="emit('select', v)"
   >
-    <div class="absolute inset-x-0 top-0 h-1 rounded-t-xl" :style="{ background: color }" />
+    <!-- The whole card selects; a sibling button (not a nested one) toggles reports -->
+    <button
+      class="absolute inset-0 rounded-xl focus-visible:outline-offset-4"
+      :aria-label="`${p.name}, ${p.title || 'no title'}. ${directs ? count(o.descendants[v]) + ' reports' : 'Individual contributor'}`"
+      :aria-pressed="selected"
+      @click.stop="emit('select', v)"
+    />
+    <div class="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-xl" :style="{ background: color }" />
 
-    <div v-if="compact" class="flex h-full items-center gap-3 px-4">
-      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-semibold text-white" :style="{ background: color }">
+    <div v-if="compact" class="pointer-events-none relative flex h-full items-center gap-3 px-4" aria-hidden="true">
+      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-semibold" :style="{ background: color, color: onColor(color) }">
         {{ initials(p.name) }}
       </div>
       <div class="min-w-0">
@@ -35,9 +41,9 @@ const directs = computed(() => o.childCount[props.v])
       </div>
     </div>
 
-    <div v-else class="flex h-full flex-col px-4 pb-3 pt-4">
+    <div v-else class="pointer-events-none relative flex h-full flex-col px-4 pb-3 pt-4" aria-hidden="true">
       <div class="flex items-center gap-3">
-        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white" :style="{ background: color }">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold" :style="{ background: color, color: onColor(color) }">
           {{ initials(p.name) }}
         </div>
         <div class="min-w-0">
@@ -68,13 +74,13 @@ const directs = computed(() => o.childCount[props.v])
 
     <button
       v-if="directs > 0"
-      class="absolute -bottom-3 left-1/2 flex h-6 -translate-x-1/2 items-center gap-1 rounded-full border px-2.5 text-[11px] font-semibold shadow-sm transition-colors"
+      class="absolute -bottom-4 left-1/2 z-10 flex h-8 min-w-[2.75rem] -translate-x-1/2 items-center justify-center gap-1 rounded-full border px-3 text-xs font-semibold shadow-sm transition-colors before:absolute before:-inset-x-2 before:-inset-y-1.5 before:content-['']"
       :class="expanded ? 'border-ink bg-ink text-white' : 'border-black/15 bg-white text-ink hover:border-ink'"
-      :aria-label="expanded ? 'Collapse direct reports' : 'Expand direct reports'"
+      :aria-label="`${expanded ? 'Collapse' : 'Expand'} ${directs} direct reports of ${p.name}`"
       :aria-expanded="expanded"
       @click.stop="emit('toggle', v)"
     >
-      <svg class="h-3 w-3 transition-transform" :class="expanded ? 'rotate-180' : ''" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+      <svg class="h-3 w-3 transition-transform" aria-hidden="true" :class="expanded ? 'rotate-180' : ''" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 4.5 6 7.5 9 4.5" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
       <span class="tabular">{{ directs }}</span>

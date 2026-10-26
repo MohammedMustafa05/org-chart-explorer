@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { org, ui, reveal, analyze, deptColor } from '../lib/store.js'
 import { pathTo, managementCostRatio } from '../lib/hierarchy.js'
-import { count, money, moneyFull, ratio, initials, OTHER, MGMT_COLOR, IC_COLOR } from '../lib/format.js'
+import { count, money, moneyFull, ratio, initials, onColor, OTHER, MGMT_COLOR, IC_COLOR } from '../lib/format.js'
 
 defineEmits(['close'])
 const o = org.value
@@ -19,7 +19,7 @@ const color = computed(() => (p.value.virtual ? '#0b0b0b' : deptColor.get(p.valu
 <template>
   <aside class="flex h-full flex-col overflow-y-auto bg-white">
     <div class="flex items-start gap-3 border-b border-line p-4 pt-2 md:p-5">
-      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold text-white" :style="{ background: color }">
+      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold" :style="{ background: color, color: onColor(color) }" aria-hidden="true">
         {{ initials(p.name) }}
       </div>
       <div class="min-w-0 flex-1">

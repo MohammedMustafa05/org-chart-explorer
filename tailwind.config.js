@@ -8,7 +8,7 @@ export default {
         sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
       },
       colors: {
-        ink: { DEFAULT: '#0b0b0b', 2: '#52514e', 3: '#898781' },
+        ink: { DEFAULT: '#0b0b0b', 2: '#52514e', 3: '#6b6a65' },
         plane: '#f9f9f7',
         surface: '#fcfcfb',
         line: '#e1e0d9',

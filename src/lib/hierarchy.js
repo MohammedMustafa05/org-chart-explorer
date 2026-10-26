@@ -150,6 +150,7 @@ export function buildOrg(rows, cols) {
 
   return {
     people,
+    indexById,
     size,
     root,
     realCount: people.filter((p) => !p.virtual).length,

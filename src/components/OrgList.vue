@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { org, ui, expandedVersion, isExpanded, toggle, select } from '../lib/store.js'
-import { count, money, initials, OTHER } from '../lib/format.js'
+import { count, money, initials, onColor, OTHER } from '../lib/format.js'
 import { deptColor } from '../lib/store.js'
 
 // Outline view: the expanded tree flattened into rows, virtualised so even a
@@ -70,14 +70,14 @@ function onKey(e, v) {
 
 <template>
   <div class="flex h-full flex-col bg-white">
-    <div class="grid grid-cols-[minmax(0,1fr)_56px_64px] items-center gap-2 border-b border-line px-3 py-2 text-xs font-medium text-ink-3 sm:grid-cols-[minmax(0,1fr)_140px_80px_80px_90px] sm:px-4">
+    <div aria-hidden="true" class="grid grid-cols-[minmax(0,1fr)_56px_64px] items-center gap-2 border-b border-line px-3 py-2 text-xs font-medium text-ink-3 sm:grid-cols-[minmax(0,1fr)_140px_80px_80px_90px] sm:px-4">
       <div>Person</div>
       <div class="hidden sm:block">Department</div>
       <div class="text-right">Reports</div>
       <div class="text-right">Managers</div>
       <div class="hidden text-right sm:block">Org cost</div>
     </div>
-    <div ref="scroller" class="relative flex-1 overflow-y-auto" @scroll="scrollTop = $event.target.scrollTop">
+    <div ref="scroller" class="relative flex-1 overflow-y-auto" role="tree" aria-label="Organization outline" @scroll="scrollTop = $event.target.scrollTop">
       <div :style="{ height: rows.length * ROW + 'px' }" class="relative">
         <div
           v-for="(v, i) in slice"
@@ -88,12 +88,16 @@ function onKey(e, v) {
           tabindex="0"
           role="treeitem"
           :aria-expanded="o.childCount[v] > 0 ? isExpanded(v) : undefined"
+          :aria-selected="ui.selected === v"
+          :aria-level="o.depth[v] - rootDepth + 1"
+          :aria-label="`${o.people[v].name}, ${o.people[v].title}. ${o.childCount[v] > 0 ? count(o.descendants[v]) + ' reports, ' + count(o.nonLeafDescendants[v]) + ' managers' : 'Individual contributor'}`"
           @click="select(v)"
           @keydown="onKey($event, v)"
         >
           <div class="flex min-w-0 items-center gap-2" :style="{ paddingLeft: indent(v) + 'px' }">
             <button
               v-if="o.childCount[v] > 0"
+              tabindex="-1"
               class="-m-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-black/10 sm:m-0 sm:h-6 sm:w-6"
               :aria-label="isExpanded(v) ? 'Collapse' : 'Expand'"
               @click.stop="toggle(v)"
@@ -103,7 +107,7 @@ function onKey(e, v) {
               </svg>
             </button>
             <span v-else class="w-6 shrink-0" />
-            <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white sm:h-8 sm:w-8 sm:text-[11px]" :style="{ background: color(v) }">
+            <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold sm:h-8 sm:w-8 sm:text-[11px]" :style="{ background: color(v), color: onColor(color(v)) }" aria-hidden="true">
               {{ initials(o.people[v].name) }}
             </div>
             <div class="min-w-0">

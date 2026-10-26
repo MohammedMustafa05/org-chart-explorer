@@ -8,6 +8,11 @@ body,
   height: 100%;
 }
 
+/* Track the visible viewport on mobile browsers whose toolbars come and go */
+#app {
+  height: 100dvh;
+}
+
 body {
   background: #f9f9f7;
 }

@@ -4,7 +4,7 @@ import { treemap, hierarchy, treemapSquarify } from 'd3-hierarchy'
 import { org, ui, reveal, select } from '../lib/store.js'
 import { pathTo } from '../lib/hierarchy.js'
 import { computeAnalytics, exportCsv, availableDimensions, SPAN_BUCKETS } from '../lib/analytics.js'
-import { count, money, moneyFull, ratio, pct, short, SERIES, OTHER, MGMT_COLOR, IC_COLOR, BLUE_RAMP } from '../lib/format.js'
+import { count, money, moneyFull, ratio, pct, short, onColor, SERIES, OTHER, MGMT_COLOR, IC_COLOR, BLUE_RAMP } from '../lib/format.js'
 import { showTip, hideTip } from '../lib/tooltip.js'
 import IcicleChart from './IcicleChart.vue'
 
@@ -60,7 +60,7 @@ const tiles = computed(() => {
   return root.leaves().map((n) => {
     const t = hi > lo ? (n.data.mgmtShare - lo) / (hi - lo) : 0.5
     const step = Math.round(1 + t * 4) // steps 1..5 of the ramp
-    return { ...n.data, x: n.x0, y: n.y0, w: n.x1 - n.x0, h: n.y1 - n.y0, fill: BLUE_RAMP[step], dark: step >= 3 }
+    return { ...n.data, x: n.x0, y: n.y0, w: n.x1 - n.x0, h: n.y1 - n.y0, fill: BLUE_RAMP[step], ink: onColor(BLUE_RAMP[step]) }
   })
 })
 
@@ -79,6 +79,33 @@ const showAll = ref(false)
 watch([groupBy, chart], () => (showAll.value = false))
 
 const rows = computed(() => (showAll.value ? a.value.groups : a.value.groups.slice(0, 12)))
+
+// table view: sortable by any column (cost descending by default)
+const TABLE_COLS = [
+  { key: 'name' },
+  { key: 'people', label: 'People' },
+  { key: 'managers', label: 'Managers' },
+  { key: 'mgmtCost', label: 'Mgmt cost' },
+  { key: 'icCost', label: 'IC cost' },
+  { key: 'salary', label: 'Salary' },
+  { key: 'bonus', label: 'Bonus' },
+  { key: 'avgSpan', label: 'Avg span' },
+]
+const sortKey = ref('salary')
+const sortDesc = ref(true)
+function sortBy(key) {
+  if (sortKey.value === key) sortDesc.value = !sortDesc.value
+  else {
+    sortKey.value = key
+    sortDesc.value = key !== 'name'
+  }
+}
+const tableRows = computed(() => {
+  const k = sortKey.value
+  const dir = sortDesc.value ? -1 : 1
+  const sorted = [...a.value.groups].sort((x, y) => (k === 'name' ? x.name.localeCompare(y.name) : x[k] - y[k]) * dir)
+  return showAll.value ? sorted : sorted.slice(0, 12)
+})
 const totalWithBonus = computed(() => a.value.totalCost + a.value.bonus)
 const maxCost = computed(() => Math.max(1, ...a.value.groups.map((g) => (chart.value === 'stacked' ? g.salary + g.bonus : g.salary))))
 const maxAvgSpan = computed(() => Math.max(1, ...a.value.groups.map((g) => g.avgSpan)))
@@ -96,6 +123,7 @@ function makeHeat(getRow, cols) {
 const layerCols = computed(() => Math.min(a.value.layerCount, 12))
 const layerStep = computed(() => makeHeat((g) => g.byLayer, layerCols.value))
 const spanStep = computed(() => makeHeat((g) => g.bySpan, SPAN_BUCKETS.length))
+const heatCell = (step) => (step >= 0 ? { background: BLUE_RAMP[step], color: onColor(BLUE_RAMP[step]) } : { background: '#f4f3ef', color: '#0b0b0b' })
 const cellText = (x, total) => (!x ? '' : asPct.value ? pct(x / Math.max(1, total)) : short(x))
 
 // ---- pyramid & span distribution
@@ -135,7 +163,7 @@ function showInChart(v) {
               <span v-if="i < crumbs.length - 1">›</span>
             </template>
           </nav>
-          <h1 class="text-xl font-semibold md:text-2xl">{{ leader.virtual ? 'Whole company' : `${leader.name}'s organization` }}</h1>
+          <h1 class="text-balance text-xl font-semibold md:text-2xl">{{ leader.virtual ? 'Whole company' : `${leader.name}'s organization` }}</h1>
           <p class="text-sm text-ink-2">{{ count(a.people) }} people report into {{ leader.virtual ? 'the company' : leader.name.split(' ')[0] }} across {{ a.layerCount }} layers</p>
         </div>
         <div class="flex gap-2">
@@ -148,32 +176,32 @@ function showInChart(v) {
       <div class="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 lg:grid-cols-6">
         <div class="rounded-xl border border-black/10 bg-white p-4">
           <div class="text-xs font-medium text-ink-3">Total cost</div>
-          <div class="mt-1 text-2xl font-semibold">{{ money(a.totalCost) }}</div>
+          <div class="tabular mt-1 text-2xl font-semibold">{{ money(a.totalCost) }}</div>
           <div class="text-xs text-ink-2">{{ money(a.totalCost / Math.max(1, a.people)) }} per person</div>
         </div>
         <div class="rounded-xl border border-black/10 bg-white p-4">
           <div class="flex items-center gap-1.5 text-xs font-medium text-ink-3"><span class="h-2 w-2 rounded-sm" :style="{ background: MGMT_COLOR }" />Management</div>
-          <div class="mt-1 text-2xl font-semibold">{{ money(a.mgmtCost) }}</div>
+          <div class="tabular mt-1 text-2xl font-semibold">{{ money(a.mgmtCost) }}</div>
           <div class="text-xs text-ink-2">{{ count(a.managers) }} managers</div>
         </div>
         <div class="rounded-xl border border-black/10 bg-white p-4">
           <div class="flex items-center gap-1.5 text-xs font-medium text-ink-3"><span class="h-2 w-2 rounded-sm" :style="{ background: IC_COLOR }" />IC cost</div>
-          <div class="mt-1 text-2xl font-semibold">{{ money(a.icCost) }}</div>
+          <div class="tabular mt-1 text-2xl font-semibold">{{ money(a.icCost) }}</div>
           <div class="text-xs text-ink-2">{{ count(a.ics) }} individual contributors</div>
         </div>
         <div class="rounded-xl border border-black/10 bg-white p-4">
           <div class="text-xs font-medium text-ink-3">Management cost ratio</div>
-          <div class="mt-1 text-2xl font-semibold">{{ ratio(a.ratio) }}</div>
+          <div class="tabular mt-1 text-2xl font-semibold">{{ ratio(a.ratio) }}</div>
           <div class="text-xs text-ink-2">IC $ per management $</div>
         </div>
         <div class="rounded-xl border border-black/10 bg-white p-4">
           <div class="text-xs font-medium text-ink-3">Avg span</div>
-          <div class="mt-1 text-2xl font-semibold">{{ a.avgSpan.toFixed(1) }}</div>
+          <div class="tabular mt-1 text-2xl font-semibold">{{ a.avgSpan.toFixed(1) }}</div>
           <div class="text-xs text-ink-2">direct reports per manager</div>
         </div>
         <div class="rounded-xl border border-black/10 bg-white p-4">
           <div class="text-xs font-medium text-ink-3">Layers</div>
-          <div class="mt-1 text-2xl font-semibold">{{ a.layerCount }}</div>
+          <div class="tabular mt-1 text-2xl font-semibold">{{ a.layerCount }}</div>
           <div class="text-xs text-ink-2">{{ shape ?? 'below the leader' }}</div>
         </div>
       </div>
@@ -196,12 +224,13 @@ function showInChart(v) {
         </div>
 
         <template v-if="mapMode === 'treemap'">
-          <div v-if="a.subOrgs.length" ref="mapBox" class="relative w-full" :style="{ aspectRatio: `${tmW} / ${tmH}` }">
+          <p v-if="!a.subOrgs.length" class="rounded-lg bg-plane px-4 py-8 text-center text-sm text-ink-2">No one reports to {{ leader.name.split(' ')[0] }}, so there's no org to map.</p>
+          <div v-else ref="mapBox" class="relative w-full" role="group" :aria-label="`Treemap of ${a.subOrgs.length} direct reports' orgs, sized by cost`" :style="{ aspectRatio: `${tmW} / ${tmH}` }">
             <button
               v-for="t in tiles"
               :key="t.v"
               class="absolute flex flex-col items-start justify-start overflow-hidden rounded-[4px] p-2 text-left transition-[filter] hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
-              :style="{ left: (t.x / tmW) * 100 + '%', top: (t.y / tmH) * 100 + '%', width: (t.w / tmW) * 100 + '%', height: (t.h / tmH) * 100 + '%', background: t.fill, color: t.dark ? '#fff' : '#0b0b0b' }"
+              :style="{ left: (t.x / tmW) * 100 + '%', top: (t.y / tmH) * 100 + '%', width: (t.w / tmW) * 100 + '%', height: (t.h / tmH) * 100 + '%', background: t.fill, color: t.ink }"
               :aria-label="`${o.people[t.v].name}: ${money(t.value)}`"
               @click="o.childCount[t.v] > 0 ? setScope(t.v) : select(t.v)"
               @mousemove="showTip($event, o.people[t.v].name, [
@@ -213,11 +242,11 @@ function showInChart(v) {
             >
               <template v-if="fitsLabel(t)">
                 <div class="w-full truncate text-xs font-semibold">{{ o.people[t.v].name }}</div>
-                <div class="w-full truncate text-[11px] opacity-80">{{ money(t.value) }} · {{ count(t.people) }}</div>
+                <div class="w-full truncate text-xs opacity-80">{{ money(t.value) }} · {{ count(t.people) }}</div>
               </template>
             </button>
           </div>
-          <div class="mt-3 flex items-center gap-2 text-[11px] text-ink-3">
+          <div class="mt-3 flex items-center gap-2 text-xs text-ink-3">
             Lower mgmt share
             <span class="flex h-2 overflow-hidden rounded-sm"><span v-for="c in BLUE_RAMP.slice(1, 6)" :key="c" class="w-4" :style="{ background: c }" /></span>
             Higher
@@ -226,7 +255,7 @@ function showInChart(v) {
 
         <template v-else>
           <IcicleChart :scope="scope" :color-of="colorOfPerson" @drill="setScope" @pick="select" />
-          <div class="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-2">
+          <div class="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-2">
             <span v-for="[name, c] in legend" :key="name" class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" :style="{ background: c }" />{{ name }}</span>
           </div>
         </template>
@@ -253,7 +282,7 @@ function showInChart(v) {
 
         <!-- cost bars (management vs IC, or salary vs bonus) -->
         <template v-if="(chart === 'cost' || chart === 'stacked') && !showTable">
-          <div class="mb-3 flex gap-3 text-[11px] text-ink-2">
+          <div class="mb-3 flex gap-3 text-xs text-ink-2">
             <template v-if="chart === 'cost'">
               <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" :style="{ background: MGMT_COLOR }" />Management</span>
               <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" :style="{ background: IC_COLOR }" />IC</span>
@@ -343,7 +372,7 @@ function showInChart(v) {
                     v-for="i in layerCols"
                     :key="i"
                     class="tabular h-8 rounded-[4px] text-center"
-                    :style="{ background: layerStep(g.byLayer[i - 1]) >= 0 ? BLUE_RAMP[layerStep(g.byLayer[i - 1])] : '#f4f3ef', color: layerStep(g.byLayer[i - 1]) >= 3 ? '#fff' : '#0b0b0b' }"
+                    :style="heatCell(layerStep(g.byLayer[i - 1]))"
                     @mousemove="showTip($event, `${g.name} · layer ${i}`, [{ label: 'People', value: count(g.byLayer[i - 1] ?? 0) }])"
                     @mouseleave="hideTip"
                   >
@@ -355,7 +384,7 @@ function showInChart(v) {
                     v-for="(b, i) in SPAN_BUCKETS"
                     :key="b.label"
                     class="tabular h-8 rounded-[4px] text-center"
-                    :style="{ background: spanStep(g.bySpan[i]) >= 0 ? BLUE_RAMP[spanStep(g.bySpan[i])] : '#f4f3ef', color: spanStep(g.bySpan[i]) >= 3 ? '#fff' : '#0b0b0b' }"
+                    :style="heatCell(spanStep(g.bySpan[i]))"
                     @mousemove="showTip($event, `${g.name} · span 1:${b.label}`, [{ label: 'Managers', value: count(g.bySpan[i]) }])"
                     @mouseleave="hideTip"
                   >
@@ -376,18 +405,25 @@ function showInChart(v) {
           <table class="w-full min-w-[640px] text-sm">
             <thead class="text-left text-xs text-ink-3">
               <tr class="border-b border-line">
-                <th class="sticky left-0 bg-white py-2 pr-3 font-medium">{{ dimLabel }}</th>
-                <th class="py-2 text-right font-medium">People</th>
-                <th class="py-2 text-right font-medium">Managers</th>
-                <th class="py-2 text-right font-medium">Mgmt cost</th>
-                <th class="py-2 text-right font-medium">IC cost</th>
-                <th class="py-2 text-right font-medium">Salary</th>
-                <th class="py-2 text-right font-medium">Bonus</th>
-                <th class="py-2 text-right font-medium">Avg span</th>
+                <th
+                  v-for="(c, i) in TABLE_COLS"
+                  :key="c.key"
+                  :aria-sort="sortKey === c.key ? (sortDesc ? 'descending' : 'ascending') : 'none'"
+                  class="py-1 font-medium"
+                  :class="i === 0 ? 'sticky left-0 bg-white pr-3' : 'text-right'"
+                  scope="col"
+                >
+                  <button class="inline-flex items-center gap-1 rounded px-1 py-1 hover:text-ink" :class="[i === 0 ? '-ml-1' : '-mr-1 flex-row-reverse', sortKey === c.key ? 'text-ink' : '']" @click="sortBy(c.key)">
+                    {{ i === 0 ? dimLabel : c.label }}
+                    <svg class="h-3 w-3" :class="sortKey === c.key ? '' : 'opacity-0'" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path :d="sortDesc ? 'M3 4.5 6 7.5 9 4.5' : 'M3 7.5 6 4.5 9 7.5'" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody class="tabular">
-              <tr v-for="g in rows" :key="g.name" class="border-b border-line/70">
+              <tr v-for="g in tableRows" :key="g.name" class="border-b border-line/70">
                 <td class="sticky left-0 max-w-[9rem] truncate bg-white py-2 pr-3 text-ink-2 sm:max-w-none">{{ g.name }}</td>
                 <td class="py-2 text-right">{{ count(g.people) }}</td>
                 <td class="py-2 text-right">{{ count(g.managers) }}</td>
@@ -418,7 +454,7 @@ function showInChart(v) {
         <section class="rounded-xl border border-black/10 bg-white p-4 md:p-5">
           <h2 class="font-semibold">Pyramid</h2>
           <p class="mb-3 text-xs text-ink-2">Headcount at each layer below the leader.<span v-if="shape"> This org looks <b class="font-semibold text-ink">{{ shape }}</b></span></p>
-          <div class="mb-1 grid grid-cols-[1fr_44px_1fr] text-[11px] text-ink-3">
+          <div class="mb-1 grid grid-cols-[1fr_44px_1fr] text-xs text-ink-3">
             <span class="flex items-center justify-end gap-1.5"><span class="h-2 w-2 rounded-sm" :style="{ background: MGMT_COLOR }" />Managers</span>
             <span />
             <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" :style="{ background: IC_COLOR }" />ICs</span>
@@ -438,7 +474,7 @@ function showInChart(v) {
               <div class="flex justify-end">
                 <div class="h-4 rounded-l" :style="{ width: (l.managers / maxLayer) * 100 + '%', background: MGMT_COLOR, minWidth: l.managers ? '2px' : 0 }" />
               </div>
-              <div class="tabular text-center text-[11px] text-ink-3">L{{ l.layer + 1 }}</div>
+              <div class="tabular text-center text-xs text-ink-3">L{{ l.layer + 1 }}</div>
               <div class="h-4 rounded-r" :style="{ width: (l.ics / maxLayer) * 100 + '%', background: IC_COLOR, minWidth: l.ics ? '2px' : 0 }" />
             </div>
           </div>
@@ -459,12 +495,12 @@ function showInChart(v) {
               ])"
               @mouseleave="hideTip"
             >
-              <span class="tabular mb-1 text-[11px] font-medium">{{ count(s.managers) }}</span>
+              <span class="tabular mb-1 text-xs font-medium">{{ count(s.managers) }}</span>
               <div class="w-full max-w-[56px] rounded-t" :style="{ height: (s.managers / maxSpan) * 80 + '%', background: s.max <= 2 ? '#86b6ef' : MGMT_COLOR, minHeight: s.managers ? '2px' : 0 }" />
             </div>
           </div>
           <div class="mt-1.5 flex gap-1 sm:gap-2">
-            <span v-for="s in a.spans" :key="s.label" class="tabular min-w-0 flex-1 text-center text-[10px] text-ink-3 sm:text-[11px]">1:{{ s.label }}</span>
+            <span v-for="s in a.spans" :key="s.label" class="tabular min-w-0 flex-1 text-center text-[10px] text-ink-3 sm:text-xs">1:{{ s.label }}</span>
           </div>
           <p class="mt-3 text-xs text-ink-2">Lighter bars: narrow spans (1–2 reports), often a sign of an extra layer.</p>
         </section>
@@ -481,12 +517,14 @@ function showInChart(v) {
               <span class="tabular text-ink-2">{{ count(a.narrow.length) }}</span>
             </div>
             <p class="text-xs text-ink-3">{{ money(a.narrow.reduce((s, v) => s + o.people[v].salary, 0)) }} in salary for layers that may be collapsible</p>
+            <p v-if="!a.narrow.length" class="mt-2 text-sm text-ink-2">None in this org.</p>
             <ul class="mt-2 divide-y divide-line">
               <li v-for="v in a.narrow.slice(0, 4)" :key="v" class="flex items-center justify-between gap-2 py-1.5">
                 <button class="min-w-0 truncate text-left hover:underline" @click="showInChart(v)">{{ o.people[v].name }} <span class="text-ink-3">· {{ o.people[v].title }}</span></button>
                 <span class="tabular shrink-0 text-xs text-ink-2">{{ money(o.people[v].salary) }}</span>
               </li>
             </ul>
+            <p v-if="a.narrow.length > 4" class="mt-1 text-xs text-ink-3">and {{ count(a.narrow.length - 4) }} more</p>
           </div>
           <div>
             <div class="flex items-baseline justify-between">
@@ -494,12 +532,14 @@ function showInChart(v) {
               <span class="tabular text-ink-2">{{ count(a.wide.length) }}</span>
             </div>
             <p class="text-xs text-ink-3">Very wide spans can leave reports without enough support</p>
+            <p v-if="!a.wide.length" class="mt-2 text-sm text-ink-2">None in this org.</p>
             <ul class="mt-2 divide-y divide-line">
               <li v-for="v in a.wide.slice(0, 4)" :key="v" class="flex items-center justify-between gap-2 py-1.5">
                 <button class="min-w-0 truncate text-left hover:underline" @click="showInChart(v)">{{ o.people[v].name }} <span class="text-ink-3">· {{ o.people[v].title }}</span></button>
                 <span class="tabular shrink-0 text-xs text-ink-2">{{ o.childCount[v] }} reports</span>
               </li>
             </ul>
+            <p v-if="a.wide.length > 4" class="mt-1 text-xs text-ink-3">and {{ count(a.wide.length - 4) }} more</p>
           </div>
         </div>
       </section>
