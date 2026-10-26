@@ -86,12 +86,18 @@ export function analyze(v) {
   ui.view = 'analytics'
 }
 
-export async function loadFromUrl(url, name) {
+// Tries each URL in turn. A missing file comes back from the Vite dev server
+// as index.html with a 200, so HTML responses count as misses too.
+export async function loadFromUrl(urls, name) {
   ui.status = 'loading'
   try {
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(`Could not load ${url} (${res.status})`)
-    loadText(await res.text(), name)
+    for (const url of [].concat(urls)) {
+      const res = await fetch(url).catch(() => null)
+      if (!res?.ok || res.headers.get('content-type')?.includes('text/html')) continue
+      loadText(await res.text(), name)
+      return
+    }
+    throw new Error(`Could not load ${name}`)
   } catch (e) {
     ui.status = 'error'
     ui.error = e.message

@@ -116,9 +116,13 @@ salary of every descendant".
 
 ## Data
 
-`public/giga-corp.csv` is the Giga Corp file provided with the assessment:
+`giga-corp.csv` is the Giga Corp file provided with the assessment:
 40,000 people, one CEO, nine layers. It loads on start. To try another org,
 use **Load CSV** or drag and drop a file onto the page.
+
+The 12.5 MB file lives on the repo's `data` branch, not `main`, so the repo
+imports into StackBlitz. The app loads `public/giga-corp.csv` if it exists
+(gitignored) and otherwise fetches the copy from the `data` branch.
 
 **Column detection.** Columns are detected from common header names:
 - Employee Id / Email

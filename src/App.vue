@@ -8,7 +8,10 @@ import PersonPanel from './components/PersonPanel.vue'
 import AnalyticsView from './components/AnalyticsView.vue'
 import ChartTooltip from './components/ChartTooltip.vue'
 
-onMounted(() => loadFromUrl(`${import.meta.env.BASE_URL}giga-corp.csv`, 'giga-corp.csv'))
+// The CSV lives on the repo's `data` branch so `main` stays small enough to
+// import into StackBlitz; a local copy in public/ is used when present.
+const DATA_URL = 'https://raw.githubusercontent.com/MohammedMustafa05/org-chart-explorer/data/giga-corp.csv'
+onMounted(() => loadFromUrl([`${import.meta.env.BASE_URL}giga-corp.csv`, DATA_URL], 'giga-corp.csv'))
 
 // ---- search
 const query = ref('')
