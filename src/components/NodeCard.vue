@@ -53,15 +53,15 @@ const directs = computed(() => o.childCount[props.v])
       <div v-else class="mt-auto grid grid-cols-3 gap-1 border-t border-line pt-2 text-center">
         <div>
           <div class="tabular text-sm font-semibold">{{ count(o.descendants[v]) }}</div>
-          <div class="text-[10px] uppercase tracking-wide text-ink-3">Reports</div>
+          <div class="text-[10px] text-ink-3">Reports</div>
         </div>
         <div>
           <div class="tabular text-sm font-semibold">{{ count(o.nonLeafDescendants[v]) }}</div>
-          <div class="text-[10px] uppercase tracking-wide text-ink-3">Managers</div>
+          <div class="text-[10px] text-ink-3">Managers</div>
         </div>
         <div>
           <div class="tabular text-sm font-semibold">{{ money(o.totalCost[v]) }}</div>
-          <div class="text-[10px] uppercase tracking-wide text-ink-3">Org cost</div>
+          <div class="text-[10px] text-ink-3">Org cost</div>
         </div>
       </div>
     </div>

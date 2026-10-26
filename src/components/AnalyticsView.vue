@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { treemap, hierarchy, treemapSquarify } from 'd3-hierarchy'
 import { org, ui, reveal, select } from '../lib/store.js'
 import { pathTo } from '../lib/hierarchy.js'
@@ -39,11 +39,21 @@ const legend = computed(() => {
 
 // ---- org map: treemap of direct reports' orgs, or an icicle of the hierarchy
 const mapMode = ref('treemap')
+const mapBox = ref(null)
+const mapPx = ref(1000) // rendered width, so phones get a squarer map and labels fit real pixels
+const ro = new ResizeObserver(([e]) => (mapPx.value = e.contentRect.width || mapPx.value))
+// The map box is re-created when switching between treemap and icicle
+watch(mapBox, (el, old) => {
+  if (old) ro.unobserve(old)
+  if (el) ro.observe(el)
+})
+onBeforeUnmount(() => ro.disconnect())
 const tmW = 1000
-const tmH = 420
+const tmH = computed(() => (mapPx.value < 640 ? 900 : 420))
+const fitsLabel = (t) => (t.w * mapPx.value) / tmW > 72 && (t.h * mapPx.value) / tmW > 40
 const tiles = computed(() => {
   const root = hierarchy({ children: a.value.subOrgs }).sum((d) => d.value ?? 0)
-  treemap().size([tmW, tmH]).paddingInner(2).tile(treemapSquarify.ratio(1.3))(root)
+  treemap().size([tmW, tmH.value]).paddingInner(2).tile(treemapSquarify.ratio(1.3))(root)
   const shares = a.value.subOrgs.map((s) => s.mgmtShare)
   const lo = Math.min(...shares)
   const hi = Math.max(...shares)
@@ -115,13 +125,13 @@ function showInChart(v) {
 
 <template>
   <div class="h-full overflow-y-auto">
-    <div class="mx-auto max-w-6xl space-y-5 px-4 py-5 md:px-6">
+    <div class="mx-auto max-w-6xl space-y-4 px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:space-y-5 sm:py-5 md:px-6">
       <!-- scope -->
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div class="min-w-0">
-          <nav class="mb-1 flex flex-wrap items-center gap-1 text-xs text-ink-3" aria-label="Scope">
+          <nav v-if="crumbs.length > 1" class="mb-1 flex flex-wrap items-center gap-1 text-xs text-ink-3" aria-label="Scope">
             <template v-for="(x, i) in crumbs" :key="x">
-              <button class="rounded px-1 hover:bg-black/5 hover:text-ink" @click="setScope(x)">{{ o.people[x].name }}</button>
+              <button class="rounded px-1 py-0.5 hover:bg-black/5 hover:text-ink" @click="setScope(x)">{{ o.people[x].name }}</button>
               <span v-if="i < crumbs.length - 1">›</span>
             </template>
           </nav>
@@ -129,40 +139,40 @@ function showInChart(v) {
           <p class="text-sm text-ink-2">{{ count(a.people) }} people report into {{ leader.virtual ? 'the company' : leader.name.split(' ')[0] }} across {{ a.layerCount }} layers</p>
         </div>
         <div class="flex gap-2">
-          <button v-if="scope !== o.root" class="rounded-lg border border-black/15 bg-white px-3 py-1.5 text-sm font-medium hover:border-ink" @click="setScope(o.root)">Whole company</button>
-          <button class="rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-white hover:bg-ink/85" @click="download">Export CSV</button>
+          <button v-if="scope !== o.root" class="rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-medium hover:border-ink sm:py-1.5" @click="setScope(o.root)">Whole company</button>
+          <button class="rounded-lg bg-ink px-3 py-2 text-sm font-medium text-white hover:bg-ink/85 sm:py-1.5" @click="download">Export CSV</button>
         </div>
       </div>
 
       <!-- KPI tiles -->
-      <div class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+      <div class="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 lg:grid-cols-6">
         <div class="rounded-xl border border-black/10 bg-white p-4">
-          <div class="text-[11px] font-medium uppercase tracking-wide text-ink-3">Total cost</div>
+          <div class="text-xs font-medium text-ink-3">Total cost</div>
           <div class="mt-1 text-2xl font-semibold">{{ money(a.totalCost) }}</div>
           <div class="text-xs text-ink-2">{{ money(a.totalCost / Math.max(1, a.people)) }} per person</div>
         </div>
         <div class="rounded-xl border border-black/10 bg-white p-4">
-          <div class="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-ink-3"><span class="h-2 w-2 rounded-sm" :style="{ background: MGMT_COLOR }" />Management</div>
+          <div class="flex items-center gap-1.5 text-xs font-medium text-ink-3"><span class="h-2 w-2 rounded-sm" :style="{ background: MGMT_COLOR }" />Management</div>
           <div class="mt-1 text-2xl font-semibold">{{ money(a.mgmtCost) }}</div>
           <div class="text-xs text-ink-2">{{ count(a.managers) }} managers</div>
         </div>
         <div class="rounded-xl border border-black/10 bg-white p-4">
-          <div class="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-ink-3"><span class="h-2 w-2 rounded-sm" :style="{ background: IC_COLOR }" />IC cost</div>
+          <div class="flex items-center gap-1.5 text-xs font-medium text-ink-3"><span class="h-2 w-2 rounded-sm" :style="{ background: IC_COLOR }" />IC cost</div>
           <div class="mt-1 text-2xl font-semibold">{{ money(a.icCost) }}</div>
           <div class="text-xs text-ink-2">{{ count(a.ics) }} individual contributors</div>
         </div>
         <div class="rounded-xl border border-black/10 bg-white p-4">
-          <div class="text-[11px] font-medium uppercase tracking-wide text-ink-3">Mgmt cost ratio</div>
+          <div class="text-xs font-medium text-ink-3">Management cost ratio</div>
           <div class="mt-1 text-2xl font-semibold">{{ ratio(a.ratio) }}</div>
           <div class="text-xs text-ink-2">IC $ per management $</div>
         </div>
         <div class="rounded-xl border border-black/10 bg-white p-4">
-          <div class="text-[11px] font-medium uppercase tracking-wide text-ink-3">Avg span</div>
+          <div class="text-xs font-medium text-ink-3">Avg span</div>
           <div class="mt-1 text-2xl font-semibold">{{ a.avgSpan.toFixed(1) }}</div>
           <div class="text-xs text-ink-2">direct reports per manager</div>
         </div>
         <div class="rounded-xl border border-black/10 bg-white p-4">
-          <div class="text-[11px] font-medium uppercase tracking-wide text-ink-3">Layers</div>
+          <div class="text-xs font-medium text-ink-3">Layers</div>
           <div class="mt-1 text-2xl font-semibold">{{ a.layerCount }}</div>
           <div class="text-xs text-ink-2">{{ shape ?? 'below the leader' }}</div>
         </div>
@@ -170,7 +180,7 @@ function showInChart(v) {
 
       <!-- org map -->
       <section class="rounded-xl border border-black/10 bg-white p-4 md:p-5">
-        <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div class="mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
           <div>
             <h2 class="font-semibold">Org map</h2>
             <p class="text-xs text-ink-2">
@@ -180,17 +190,17 @@ function showInChart(v) {
             </p>
           </div>
           <div class="flex rounded-lg bg-black/5 p-0.5 text-xs font-medium">
-            <button class="rounded-md px-2.5 py-1" :class="mapMode === 'treemap' ? 'bg-white shadow-sm' : 'text-ink-2'" @click="mapMode = 'treemap'">Treemap</button>
-            <button class="rounded-md px-2.5 py-1" :class="mapMode === 'icicle' ? 'bg-white shadow-sm' : 'text-ink-2'" @click="mapMode = 'icicle'">Icicle</button>
+            <button class="rounded-md px-3 py-1.5 sm:px-2.5 sm:py-1" :class="mapMode === 'treemap' ? 'bg-white shadow-sm' : 'text-ink-2'" @click="mapMode = 'treemap'">Treemap</button>
+            <button class="rounded-md px-3 py-1.5 sm:px-2.5 sm:py-1" :class="mapMode === 'icicle' ? 'bg-white shadow-sm' : 'text-ink-2'" @click="mapMode = 'icicle'">Icicle</button>
           </div>
         </div>
 
         <template v-if="mapMode === 'treemap'">
-          <div v-if="a.subOrgs.length" class="relative w-full" :style="{ aspectRatio: `${tmW} / ${tmH}` }">
+          <div v-if="a.subOrgs.length" ref="mapBox" class="relative w-full" :style="{ aspectRatio: `${tmW} / ${tmH}` }">
             <button
               v-for="t in tiles"
               :key="t.v"
-              class="absolute overflow-hidden rounded-[4px] p-2 text-left transition-[filter] hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
+              class="absolute flex flex-col items-start justify-start overflow-hidden rounded-[4px] p-2 text-left transition-[filter] hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
               :style="{ left: (t.x / tmW) * 100 + '%', top: (t.y / tmH) * 100 + '%', width: (t.w / tmW) * 100 + '%', height: (t.h / tmH) * 100 + '%', background: t.fill, color: t.dark ? '#fff' : '#0b0b0b' }"
               :aria-label="`${o.people[t.v].name}: ${money(t.value)}`"
               @click="o.childCount[t.v] > 0 ? setScope(t.v) : select(t.v)"
@@ -201,9 +211,9 @@ function showInChart(v) {
               ])"
               @mouseleave="hideTip"
             >
-              <template v-if="t.w > 90 && t.h > 44">
-                <div class="truncate text-xs font-semibold">{{ o.people[t.v].name }}</div>
-                <div class="truncate text-[11px] opacity-80">{{ money(t.value) }} · {{ count(t.people) }}</div>
+              <template v-if="fitsLabel(t)">
+                <div class="w-full truncate text-xs font-semibold">{{ o.people[t.v].name }}</div>
+                <div class="w-full truncate text-[11px] opacity-80">{{ money(t.value) }} · {{ count(t.people) }}</div>
               </template>
             </button>
           </div>
@@ -226,18 +236,18 @@ function showInChart(v) {
       <section class="rounded-xl border border-black/10 bg-white p-4 md:p-5">
         <div class="mb-4 flex flex-wrap items-center gap-2">
           <h2 class="mr-auto font-semibold">Breakdown</h2>
-          <select v-model="chart" class="rounded-lg border border-black/15 bg-white px-2.5 py-1.5 text-sm" aria-label="Chart">
+          <select v-model="chart" class="w-full rounded-lg border border-black/15 bg-white px-2.5 py-2 text-base sm:w-auto sm:py-1.5 sm:text-sm" aria-label="Chart">
             <option v-for="c in CHARTS" :key="c.key" :value="c.key">{{ c.label }}</option>
           </select>
           <label class="flex items-center gap-1.5 text-sm text-ink-2">
             by
-            <select v-model="groupBy" class="rounded-lg border border-black/15 bg-white px-2.5 py-1.5 text-sm text-ink" aria-label="Group by">
+            <select v-model="groupBy" class="rounded-lg border border-black/15 bg-white px-2.5 py-2 text-base text-ink sm:py-1.5 sm:text-sm" aria-label="Group by">
               <option v-for="d in dims" :key="d.key" :value="d.key">{{ d.label }}</option>
             </select>
           </label>
           <div v-if="chart !== 'avgSpan'" class="flex rounded-lg bg-black/5 p-0.5 text-xs font-medium" role="group" aria-label="Units">
-            <button class="rounded-md px-2.5 py-1" :class="!asPct ? 'bg-white shadow-sm' : 'text-ink-2'" @click="asPct = false">#</button>
-            <button class="rounded-md px-2.5 py-1" :class="asPct ? 'bg-white shadow-sm' : 'text-ink-2'" @click="asPct = true">%</button>
+            <button class="rounded-md px-3 py-1.5 sm:px-2.5 sm:py-1" :class="!asPct ? 'bg-white shadow-sm' : 'text-ink-2'" @click="asPct = false">#</button>
+            <button class="rounded-md px-3 py-1.5 sm:px-2.5 sm:py-1" :class="asPct ? 'bg-white shadow-sm' : 'text-ink-2'" @click="asPct = true">%</button>
           </div>
         </div>
 
@@ -257,7 +267,7 @@ function showInChart(v) {
             <div
               v-for="g in rows"
               :key="g.name"
-              class="grid grid-cols-[minmax(0,170px)_1fr_64px] items-center gap-3 text-sm"
+              class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-sm sm:grid-cols-[minmax(0,170px)_1fr_64px]"
               @mousemove="showTip($event, g.name, chart === 'cost'
                 ? [
                     { label: 'Management', value: moneyFull(g.mgmtCost), color: MGMT_COLOR },
@@ -272,7 +282,7 @@ function showInChart(v) {
               @mouseleave="hideTip"
             >
               <div class="truncate text-ink-2">{{ g.name }}</div>
-              <div class="flex h-4 gap-[2px]" :style="{ width: ((chart === 'cost' ? g.salary : g.salary + g.bonus) / maxCost) * 100 + '%' }">
+              <div class="col-span-2 row-start-2 flex h-3 gap-[2px] sm:col-span-1 sm:row-start-auto sm:h-4" :style="{ width: ((chart === 'cost' ? g.salary : g.salary + g.bonus) / maxCost) * 100 + '%' }">
                 <template v-if="chart === 'cost'">
                   <div class="h-full" :style="{ width: (g.mgmtCost / Math.max(1, g.salary)) * 100 + '%', background: MGMT_COLOR }" />
                   <div class="h-full flex-1 rounded-r" :style="{ background: IC_COLOR }" />
@@ -296,12 +306,12 @@ function showInChart(v) {
             <div
               v-for="g in rows"
               :key="g.name"
-              class="grid grid-cols-[minmax(0,170px)_1fr_48px] items-center gap-3 text-sm"
+              class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-sm sm:grid-cols-[minmax(0,170px)_1fr_48px]"
               @mousemove="showTip($event, g.name, [{ label: 'Average span', value: g.avgSpan.toFixed(2) }, { label: 'Managers', value: count(g.managers) }])"
               @mouseleave="hideTip"
             >
               <div class="truncate text-ink-2">{{ g.name }}</div>
-              <div class="relative h-4">
+              <div class="relative col-span-2 row-start-2 h-3 sm:col-span-1 sm:row-start-auto sm:h-4">
                 <div class="h-full rounded-r" :style="{ width: (g.avgSpan / maxAvgSpan) * 100 + '%', background: MGMT_COLOR }" />
                 <div class="absolute inset-y-[-3px] w-px bg-ink" :style="{ left: (a.avgSpan / maxAvgSpan) * 100 + '%' }" />
               </div>
@@ -313,10 +323,10 @@ function showInChart(v) {
 
         <!-- heatmaps -->
         <div v-else-if="(chart === 'layers' || chart === 'layerSpan') && !showTable" class="overflow-x-auto">
-          <table class="w-full min-w-[560px] table-fixed border-separate text-xs" style="border-spacing: 2px">
+          <table class="w-full min-w-[520px] table-fixed border-separate text-xs" style="border-spacing: 2px">
             <thead>
               <tr>
-                <th class="w-44 text-left font-medium text-ink-3">{{ dimLabel }}</th>
+                <th class="sticky left-0 z-10 w-32 bg-white text-left font-medium text-ink-3 sm:w-44">{{ dimLabel }}</th>
                 <template v-if="chart === 'layers'">
                   <th v-for="i in layerCols" :key="i" class="tabular font-medium text-ink-3">L{{ i }}</th>
                 </template>
@@ -327,7 +337,7 @@ function showInChart(v) {
             </thead>
             <tbody>
               <tr v-for="g in rows" :key="g.name">
-                <td class="truncate pr-2 text-ink-2">{{ g.name }}</td>
+                <td class="sticky left-0 z-10 truncate bg-white pr-2 text-ink-2">{{ g.name }}</td>
                 <template v-if="chart === 'layers'">
                   <td
                     v-for="i in layerCols"
@@ -364,9 +374,9 @@ function showInChart(v) {
         <!-- table view of the same numbers -->
         <div v-if="showTable" class="overflow-x-auto">
           <table class="w-full min-w-[640px] text-sm">
-            <thead class="text-left text-[11px] uppercase tracking-wide text-ink-3">
+            <thead class="text-left text-xs text-ink-3">
               <tr class="border-b border-line">
-                <th class="py-2 font-medium">{{ dimLabel }}</th>
+                <th class="sticky left-0 bg-white py-2 pr-3 font-medium">{{ dimLabel }}</th>
                 <th class="py-2 text-right font-medium">People</th>
                 <th class="py-2 text-right font-medium">Managers</th>
                 <th class="py-2 text-right font-medium">Mgmt cost</th>
@@ -378,7 +388,7 @@ function showInChart(v) {
             </thead>
             <tbody class="tabular">
               <tr v-for="g in rows" :key="g.name" class="border-b border-line/70">
-                <td class="py-2 text-ink-2">{{ g.name }}</td>
+                <td class="sticky left-0 max-w-[9rem] truncate bg-white py-2 pr-3 text-ink-2 sm:max-w-none">{{ g.name }}</td>
                 <td class="py-2 text-right">{{ count(g.people) }}</td>
                 <td class="py-2 text-right">{{ count(g.managers) }}</td>
                 <td class="py-2 text-right">{{ fmtCost(g.mgmtCost, a.totalCost) }}</td>
@@ -397,7 +407,7 @@ function showInChart(v) {
             <span class="relative h-5 w-9 rounded-full bg-black/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-4 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-ink" />
             Show table
           </label>
-          <button v-if="a.groups.length > 12" class="text-xs font-medium text-ink-2 hover:text-ink" @click="showAll = !showAll">
+          <button v-if="a.groups.length > 12" class="-my-1 rounded-md px-2 py-2 text-xs font-medium text-ink-2 hover:text-ink" @click="showAll = !showAll">
             {{ showAll ? 'Show top 12' : `Show all ${a.groups.length}` }}
           </button>
         </div>
@@ -407,7 +417,7 @@ function showInChart(v) {
         <!-- pyramid -->
         <section class="rounded-xl border border-black/10 bg-white p-4 md:p-5">
           <h2 class="font-semibold">Pyramid</h2>
-          <p class="mb-3 text-xs text-ink-2">Headcount at each layer below the leader<span v-if="shape"> — this org looks <b class="font-semibold text-ink">{{ shape }}</b></span></p>
+          <p class="mb-3 text-xs text-ink-2">Headcount at each layer below the leader.<span v-if="shape"> This org looks <b class="font-semibold text-ink">{{ shape }}</b></span></p>
           <div class="mb-1 grid grid-cols-[1fr_44px_1fr] text-[11px] text-ink-3">
             <span class="flex items-center justify-end gap-1.5"><span class="h-2 w-2 rounded-sm" :style="{ background: MGMT_COLOR }" />Managers</span>
             <span />
@@ -437,8 +447,8 @@ function showInChart(v) {
         <!-- span of control -->
         <section class="rounded-xl border border-black/10 bg-white p-4 md:p-5">
           <h2 class="font-semibold">Span of control distribution</h2>
-          <p class="mb-4 text-xs text-ink-2">Managers grouped by number of direct reports · average {{ a.avgSpan.toFixed(1) }}</p>
-          <div class="flex h-44 items-end gap-2 border-b border-[#c3c2b7]">
+          <p class="mb-4 text-xs text-ink-2">Managers grouped by number of direct reports. Average {{ a.avgSpan.toFixed(1) }}.</p>
+          <div class="flex h-44 items-end gap-1 border-b sm:gap-2 border-[#c3c2b7]">
             <div
               v-for="s in a.spans"
               :key="s.label"
@@ -453,8 +463,8 @@ function showInChart(v) {
               <div class="w-full max-w-[56px] rounded-t" :style="{ height: (s.managers / maxSpan) * 80 + '%', background: s.max <= 2 ? '#86b6ef' : MGMT_COLOR, minHeight: s.managers ? '2px' : 0 }" />
             </div>
           </div>
-          <div class="mt-1.5 flex gap-2">
-            <span v-for="s in a.spans" :key="s.label" class="tabular flex-1 text-center text-[11px] text-ink-3">1:{{ s.label }}</span>
+          <div class="mt-1.5 flex gap-1 sm:gap-2">
+            <span v-for="s in a.spans" :key="s.label" class="tabular min-w-0 flex-1 text-center text-[10px] text-ink-3 sm:text-[11px]">1:{{ s.label }}</span>
           </div>
           <p class="mt-3 text-xs text-ink-2">Lighter bars: narrow spans (1–2 reports), often a sign of an extra layer.</p>
         </section>

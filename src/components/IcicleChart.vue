@@ -60,7 +60,7 @@ function tip(e, c) {
       @mousemove="tip($event, c)"
       @mouseleave="hideTip"
     >
-      <span v-if="c.w > 70" class="block truncate font-medium">{{ org.people[c.v].name }}</span>
+      <span v-if="c.w > 110" class="block truncate font-medium">{{ org.people[c.v].name }}</span>
     </button>
   </div>
 </template>

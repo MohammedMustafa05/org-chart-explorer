@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, reactive, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, reactive, watch } from 'vue'
 import { org, ui, loadFromUrl, loadText, applyMapping, reveal, select } from './lib/store.js'
 import { count, money, initials } from './lib/format.js'
 import OrgChart from './components/OrgChart.vue'
@@ -76,6 +76,11 @@ watch(
 )
 
 const panelOpen = computed(() => ui.status === 'ready' && ui.selected >= 0 && ui.view !== 'analytics')
+function onWindowKey(e) {
+  if (e.key === 'Escape' && panelOpen.value && !searchOpen.value) select(-1)
+}
+onMounted(() => window.addEventListener('keydown', onWindowKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKey))
 const views = [
   ['chart', 'Org chart'],
   ['list', 'List'],
@@ -91,12 +96,12 @@ const views = [
     @drop.prevent="onDrop"
   >
     <!-- header -->
-    <header class="z-20 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/10 bg-white px-4 py-2.5 md:flex-nowrap">
-      <div class="flex items-center gap-2.5">
-        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-white">
+    <header class="relative z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-black/10 bg-white px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] md:flex-nowrap md:gap-x-4">
+      <div class="flex min-w-0 items-center gap-2.5">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ink text-white">
           <svg viewBox="0 0 20 20" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="6" height="4" rx="1" /><rect x="2" y="14" width="6" height="4" rx="1" /><rect x="12" y="14" width="6" height="4" rx="1" /><path d="M10 6v4M5 14v-2h10v2" /></svg>
         </div>
-        <div class="leading-tight">
+        <div class="min-w-0 leading-tight">
           <div class="text-sm font-semibold">Giga Corp</div>
           <div v-if="org" class="tabular text-[11px] text-ink-3">{{ count(org.realCount) }} people · {{ money(org.totalCost[org.root] + org.people[org.root].salary) }}</div>
         </div>
@@ -106,7 +111,7 @@ const views = [
         <button
           v-for="[key, label] in views"
           :key="key"
-          class="flex-1 whitespace-nowrap rounded-md px-3 py-1.5 font-medium transition-colors md:flex-none"
+          class="flex-1 whitespace-nowrap rounded-md px-2 py-2 font-medium transition-colors sm:px-3 md:flex-none md:py-1.5"
           :class="ui.view === key ? 'bg-white text-ink shadow-sm' : 'text-ink-2 hover:text-ink'"
           :aria-current="ui.view === key ? 'page' : undefined"
           @click="ui.view = key"
@@ -115,26 +120,28 @@ const views = [
         </button>
       </nav>
 
-      <div class="relative ml-auto w-full max-w-xs flex-1 sm:w-auto">
-        <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="5" /><path d="m11 11 3 3" stroke-linecap="round" /></svg>
-        <input
-          v-model="query"
-          :disabled="ui.status !== 'ready'"
-          type="search"
-          placeholder="Search people, titles, teams"
-          class="w-full rounded-lg border border-black/10 bg-plane py-2 pl-9 pr-3 text-sm outline-none focus:border-ink/40 focus:bg-white"
-          role="combobox"
-          :aria-expanded="searchOpen && results.length > 0"
-          @focus="searchOpen = true"
-          @input="searchOpen = true; active = 0"
-          @blur="searchOpen = false"
-          @keydown="onSearchKey"
-        />
-        <ul v-if="searchOpen && results.length" class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-lg" role="listbox">
+      <div class="ml-auto min-w-0 max-w-xs flex-1 sm:relative">
+        <div class="relative">
+          <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="5" /><path d="m11 11 3 3" stroke-linecap="round" /></svg>
+          <input
+            v-model="query"
+            :disabled="ui.status !== 'ready'"
+            type="search"
+            placeholder="Search people or teams"
+            class="w-full rounded-lg border border-black/10 bg-plane py-2 pl-9 pr-3 text-base outline-none focus:border-ink/40 focus:bg-white focus-visible:outline-none sm:text-sm"
+            role="combobox"
+            :aria-expanded="searchOpen && results.length > 0"
+            @focus="searchOpen = true"
+            @input="searchOpen = true; active = 0"
+            @blur="searchOpen = false"
+            @keydown="onSearchKey"
+          />
+        </div>
+        <ul v-if="searchOpen && results.length" class="absolute inset-x-3 top-full z-30 mt-1 overflow-hidden rounded-xl border border-black/10 bg-white py-1 shadow-lg sm:inset-x-auto sm:right-0 sm:w-[22rem]" role="listbox">
           <li
             v-for="(v, i) in results"
             :key="v"
-            class="flex cursor-pointer items-center gap-2.5 px-3 py-2"
+            class="flex cursor-pointer items-center gap-2.5 px-3 py-2.5 sm:py-2"
             :class="i === active ? 'bg-black/5' : ''"
             role="option"
             :aria-selected="i === active"
@@ -150,15 +157,20 @@ const views = [
         </ul>
       </div>
 
-      <button class="hidden shrink-0 rounded-lg border border-black/10 px-3 py-2 text-sm font-medium hover:border-ink sm:block" @click="fileInput.click()">
-        Load CSV
+      <button
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-black/10 text-sm font-medium hover:border-ink sm:h-auto sm:w-auto sm:px-3 sm:py-2"
+        aria-label="Load CSV"
+        @click="fileInput.click()"
+      >
+        <svg class="h-4 w-4 sm:hidden" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2M5 5l3-3 3 3M2 10v3h12v-3" /></svg>
+        <span class="hidden sm:inline">Load CSV</span>
       </button>
       <input ref="fileInput" type="file" accept=".csv,text/csv" class="hidden" @change="readFile($event.target.files[0])" />
     </header>
 
     <!-- body -->
     <main class="relative flex min-h-0 flex-1">
-      <div v-if="ui.status === 'loading' || ui.status === 'idle'" class="flex flex-1 items-center justify-center text-sm text-ink-2">
+      <div v-if="ui.status === 'loading' || ui.status === 'idle'" class="flex flex-1 items-center justify-center p-6 text-center text-sm text-ink-2">
         <div class="flex items-center gap-3">
           <span class="h-4 w-4 animate-spin rounded-full border-2 border-ink/20 border-t-ink" />
           Building the hierarchy for {{ ui.fileName || 'Giga Corp' }}…
@@ -178,9 +190,9 @@ const views = [
           <p class="font-semibold">Match your columns</p>
           <p class="mt-1 text-sm text-ink-2">We couldn't recognise every column in {{ ui.fileName }}. Pick which column holds each field.</p>
           <div class="mt-4 space-y-3">
-            <label v-for="[key, label, required] in FIELDS" :key="key" class="grid grid-cols-[120px_1fr] items-center gap-3 text-sm">
+            <label v-for="[key, label, required] in FIELDS" :key="key" class="grid grid-cols-[minmax(0,110px)_1fr] items-center gap-3 text-sm">
               <span>{{ label }}<span v-if="required" class="text-[#d03b3b]">*</span></span>
-              <select v-model="mapping[key]" class="rounded-lg border border-black/15 bg-white px-2 py-1.5">
+              <select v-model="mapping[key]" class="min-w-0 rounded-lg border border-black/15 bg-white px-2 py-2 text-base sm:py-1.5 sm:text-sm">
                 <option :value="undefined">—</option>
                 <option v-for="h in ui.pending.headers" :key="h" :value="h">{{ h }}</option>
               </select>
@@ -199,7 +211,10 @@ const views = [
           <AnalyticsView v-else :key="ui.loadId" />
         </div>
 
-        <!-- details: side panel on desktop, bottom sheet on mobile -->
+        <!-- details: bottom sheet on phones, overlay drawer on tablets, side panel on desktop -->
+        <transition enter-from-class="opacity-0" leave-to-class="opacity-0" enter-active-class="transition-opacity duration-200" leave-active-class="transition-opacity duration-200">
+          <div v-if="panelOpen" class="fixed inset-0 z-30 bg-black/20 md:absolute lg:hidden" aria-hidden="true" @click="select(-1)" />
+        </transition>
         <transition
           enter-from-class="translate-y-full md:translate-y-0 md:translate-x-full"
           leave-to-class="translate-y-full md:translate-y-0 md:translate-x-full"
@@ -208,9 +223,12 @@ const views = [
         >
           <div
             v-if="panelOpen"
-            class="fixed inset-x-0 bottom-0 z-30 max-h-[70vh] overflow-hidden rounded-t-2xl border-t border-black/10 shadow-2xl md:static md:z-auto md:max-h-none md:w-[360px] md:shrink-0 md:rounded-none md:border-l md:border-t-0 md:shadow-none"
+            class="fixed inset-x-0 bottom-0 z-40 flex max-h-[80dvh] flex-col overflow-hidden rounded-t-2xl border-t border-black/10 bg-white shadow-2xl md:absolute md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[380px] md:rounded-none md:border-l md:border-t-0 lg:static lg:z-auto lg:w-[360px] lg:shrink-0 lg:shadow-none"
+            role="dialog"
+            aria-label="Person details"
           >
-            <PersonPanel :key="ui.selected" @close="select(-1)" />
+            <div class="flex justify-center pb-1 pt-2 md:hidden" aria-hidden="true"><span class="h-1 w-10 rounded-full bg-black/15" /></div>
+            <PersonPanel :key="ui.selected" class="min-h-0 flex-1" @close="select(-1)" />
           </div>
         </transition>
       </template>

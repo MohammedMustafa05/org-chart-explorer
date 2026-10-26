@@ -10,6 +10,7 @@ const ROW = 56
 const scroller = ref(null)
 const scrollTop = ref(0)
 const height = ref(600)
+const width = ref(800)
 
 const rows = computed(() => {
   expandedVersion.value // re-flatten when anything opens or closes
@@ -32,6 +33,11 @@ const slice = computed(() => rows.value.slice(first.value, last.value))
 
 const o = org.value
 const rootDepth = o.depth[o.root]
+// Indent shrinks on narrow screens so deep rows keep room for the name
+const indent = (v) => {
+  const step = width.value < 640 ? 10 : 18
+  return Math.min(o.depth[v] - rootDepth, width.value < 640 ? 8 : 12) * step
+}
 const color = (v) => (o.people[v].virtual ? '#0b0b0b' : deptColor.get(o.people[v].department) ?? OTHER)
 
 watch(
@@ -45,7 +51,10 @@ watch(
 
 let ro
 onMounted(() => {
-  ro = new ResizeObserver(([e]) => (height.value = e.contentRect.height))
+  ro = new ResizeObserver(([e]) => {
+    height.value = e.contentRect.height
+    width.value = e.contentRect.width
+  })
   ro.observe(scroller.value)
   const i = rows.value.indexOf(ui.selected)
   if (i > 0) scroller.value.scrollTop = Math.max(0, i * ROW - height.value / 3)
@@ -61,7 +70,7 @@ function onKey(e, v) {
 
 <template>
   <div class="flex h-full flex-col bg-white">
-    <div class="grid grid-cols-[1fr_72px_72px] items-center gap-2 border-b border-line px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-ink-3 sm:grid-cols-[1fr_140px_80px_80px_90px]">
+    <div class="grid grid-cols-[minmax(0,1fr)_56px_64px] items-center gap-2 border-b border-line px-3 py-2 text-xs font-medium text-ink-3 sm:grid-cols-[minmax(0,1fr)_140px_80px_80px_90px] sm:px-4">
       <div>Person</div>
       <div class="hidden sm:block">Department</div>
       <div class="text-right">Reports</div>
@@ -73,7 +82,7 @@ function onKey(e, v) {
         <div
           v-for="(v, i) in slice"
           :key="v"
-          class="absolute inset-x-0 grid cursor-pointer grid-cols-[1fr_72px_72px] items-center gap-2 border-b border-line/70 px-4 outline-none focus-visible:bg-black/5 sm:grid-cols-[1fr_140px_80px_80px_90px]"
+          class="absolute inset-x-0 grid cursor-pointer grid-cols-[minmax(0,1fr)_56px_64px] items-center gap-2 border-b border-line/70 px-3 outline-none focus-visible:bg-black/5 focus-visible:outline-none sm:grid-cols-[minmax(0,1fr)_140px_80px_80px_90px] sm:px-4"
           :class="ui.selected === v ? 'bg-[#2a78d6]/[0.07]' : 'hover:bg-black/[0.03]'"
           :style="{ top: (first + i) * ROW + 'px', height: ROW + 'px' }"
           tabindex="0"
@@ -82,10 +91,10 @@ function onKey(e, v) {
           @click="select(v)"
           @keydown="onKey($event, v)"
         >
-          <div class="flex min-w-0 items-center gap-2" :style="{ paddingLeft: Math.min(o.depth[v] - rootDepth, 12) * 18 + 'px' }">
+          <div class="flex min-w-0 items-center gap-2" :style="{ paddingLeft: indent(v) + 'px' }">
             <button
               v-if="o.childCount[v] > 0"
-              class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-black/10"
+              class="-m-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-black/10 sm:m-0 sm:h-6 sm:w-6"
               :aria-label="isExpanded(v) ? 'Collapse' : 'Expand'"
               @click.stop="toggle(v)"
             >
@@ -94,7 +103,7 @@ function onKey(e, v) {
               </svg>
             </button>
             <span v-else class="w-6 shrink-0" />
-            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white" :style="{ background: color(v) }">
+            <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white sm:h-8 sm:w-8 sm:text-[11px]" :style="{ background: color(v) }">
               {{ initials(o.people[v].name) }}
             </div>
             <div class="min-w-0">

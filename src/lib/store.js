@@ -152,8 +152,8 @@ function finish(rows, cols) {
   expanded.clear()
   expanded.add(built.root)
   expandedVersion.value++
-  // On phones the details sheet would cover the chart, so start with nothing selected
-  ui.selected = window.innerWidth >= 768 ? built.root : -1
+  // Below desktop the details panel overlays the chart, so start with nothing selected
+  ui.selected = window.innerWidth >= 1024 ? built.root : -1
   ui.scope = built.root
   ui.loadId++
   ui.status = 'ready'

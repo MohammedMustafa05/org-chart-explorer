@@ -252,7 +252,7 @@ const shown = computed(() => layout.value.cards.length)
           class="absolute rounded-2xl border border-dashed border-black/15 bg-black/[0.025]"
           :style="{ left: g.left + 'px', top: g.top + 'px', width: g.w + 'px', height: g.h + 'px' }"
         >
-          <div class="px-4 pt-2 text-[11px] font-medium uppercase tracking-wide text-ink-3">
+          <div class="px-4 pt-2 text-xs font-medium text-ink-3">
             {{ g.size }} individual contributors
           </div>
         </div>
@@ -271,22 +271,22 @@ const shown = computed(() => layout.value.cards.length)
     <!-- toolbar -->
     <div class="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start justify-between gap-2">
       <div class="pointer-events-auto flex items-center gap-1 rounded-xl border border-black/10 bg-white/95 p-1 text-sm shadow-sm backdrop-blur">
-        <button class="rounded-lg px-3 py-1.5 font-medium hover:bg-black/5" @click="expandNextLevel()">Expand a level</button>
-        <button class="rounded-lg px-3 py-1.5 font-medium hover:bg-black/5" @click="collapseAll(); fit()">Collapse all</button>
+        <button class="rounded-lg px-3 py-2 font-medium hover:bg-black/5 sm:py-1.5" @click="expandNextLevel()">Expand a level</button>
+        <button class="rounded-lg px-3 py-2 font-medium hover:bg-black/5 sm:py-1.5" @click="collapseAll(); fit()">Collapse all</button>
       </div>
       <div class="pointer-events-auto rounded-xl border border-black/10 bg-white/95 px-3 py-2 text-xs text-ink-2 shadow-sm backdrop-blur">
         <span class="tabular font-semibold text-ink">{{ count(shown) }}</span> of {{ count(org.realCount) }} people shown
       </div>
     </div>
 
-    <div class="absolute bottom-3 right-3 flex items-center gap-1 rounded-xl border border-black/10 bg-white/95 p-1 text-sm shadow-sm backdrop-blur">
-      <button class="h-8 w-8 rounded-lg text-lg leading-none hover:bg-black/5" aria-label="Zoom out" @click="zoomBy(1 / 1.25)">−</button>
+    <div class="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-3 flex items-center gap-1 rounded-xl border border-black/10 bg-white/95 p-1 text-sm shadow-sm backdrop-blur">
+      <button class="h-10 w-10 rounded-lg text-lg leading-none hover:bg-black/5 sm:h-8 sm:w-8" aria-label="Zoom out" @click="zoomBy(1 / 1.25)">−</button>
       <span class="tabular w-12 text-center text-xs text-ink-2">{{ Math.round(t.k * 100) }}%</span>
-      <button class="h-8 w-8 rounded-lg text-lg leading-none hover:bg-black/5" aria-label="Zoom in" @click="zoomBy(1.25)">+</button>
-      <button class="rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-black/5" @click="fit">Fit</button>
+      <button class="h-10 w-10 rounded-lg text-lg leading-none hover:bg-black/5 sm:h-8 sm:w-8" aria-label="Zoom in" @click="zoomBy(1.25)">+</button>
+      <button class="h-10 rounded-lg px-3 text-xs font-medium hover:bg-black/5 sm:h-8 sm:px-2.5" @click="fit">Fit</button>
     </div>
 
-    <div class="pointer-events-none absolute bottom-4 left-4 hidden text-xs text-ink-3 md:block">
+    <div class="pointer-events-none absolute bottom-4 left-4 hidden text-xs text-ink-3 lg:block">
       Drag or scroll to pan · Pinch or ⌘/Ctrl + scroll to zoom
     </div>
   </div>

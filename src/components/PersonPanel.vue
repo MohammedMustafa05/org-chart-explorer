@@ -18,7 +18,7 @@ const color = computed(() => (p.value.virtual ? '#0b0b0b' : deptColor.get(p.valu
 
 <template>
   <aside class="flex h-full flex-col overflow-y-auto bg-white">
-    <div class="flex items-start gap-3 border-b border-line p-5">
+    <div class="flex items-start gap-3 border-b border-line p-4 pt-2 md:p-5">
       <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold text-white" :style="{ background: color }">
         {{ initials(p.name) }}
       </div>
@@ -31,35 +31,35 @@ const color = computed(() => (p.value.virtual ? '#0b0b0b' : deptColor.get(p.valu
           <span v-if="!p.virtual"> · {{ moneyFull(p.salary) }}</span>
         </p>
       </div>
-      <button class="rounded-lg p-1.5 text-ink-3 hover:bg-black/5 hover:text-ink" aria-label="Close details" @click="$emit('close')">
+      <button class="-mr-1 -mt-1 rounded-lg p-2.5 text-ink-3 hover:bg-black/5 hover:text-ink" aria-label="Close details" @click="$emit('close')">
         <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round" /></svg>
       </button>
     </div>
 
-    <div v-if="chain.length" class="border-b border-line px-5 py-3">
-      <div class="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-ink-3">Reports up to</div>
+    <div v-if="chain.length" class="border-b border-line px-4 py-3 md:px-5">
+      <div class="mb-1.5 text-xs font-medium text-ink-3">Reports up to</div>
       <div class="flex flex-wrap items-center gap-1 text-xs">
         <template v-for="(x, i) in chain" :key="x">
-          <button class="rounded-md px-1.5 py-0.5 text-ink-2 hover:bg-black/5 hover:text-ink" @click="reveal(x)">{{ o.people[x].name }}</button>
+          <button class="rounded-md px-1.5 py-1 text-ink-2 hover:bg-black/5 hover:text-ink" @click="reveal(x)">{{ o.people[x].name }}</button>
           <span v-if="i < chain.length - 1" class="text-ink-3">›</span>
         </template>
       </div>
     </div>
 
     <div v-if="o.childCount[v] > 0" class="grid grid-cols-2 gap-px border-b border-line bg-line">
-      <div class="bg-white p-4">
-        <div class="text-[11px] font-medium uppercase tracking-wide text-ink-3">Descendants</div>
+      <div class="bg-white px-4 py-3 md:p-4">
+        <div class="text-xs font-medium text-ink-3">Descendants</div>
         <div class="tabular mt-1 text-2xl font-semibold">{{ count(o.descendants[v]) }}</div>
         <div class="text-xs text-ink-2">{{ count(o.childCount[v]) }} direct</div>
       </div>
-      <div class="bg-white p-4">
-        <div class="text-[11px] font-medium uppercase tracking-wide text-ink-3">Non-leaf descendants</div>
+      <div class="bg-white px-4 py-3 md:p-4">
+        <div class="text-xs font-medium text-ink-3">Non-leaf descendants</div>
         <div class="tabular mt-1 text-2xl font-semibold">{{ count(o.nonLeafDescendants[v]) }}</div>
         <div class="text-xs text-ink-2">{{ count(ics) }} individual contributors</div>
       </div>
     </div>
 
-    <div class="space-y-4 p-5">
+    <div class="space-y-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:p-5">
       <div v-if="o.childCount[v] > 0">
         <div class="flex items-baseline justify-between">
           <span class="text-sm font-medium">Total cost</span>
@@ -94,9 +94,9 @@ const color = computed(() => (p.value.virtual ? '#0b0b0b' : deptColor.get(p.valu
       <p v-else class="text-sm text-ink-2">Individual contributor — no one reports to {{ p.name.split(' ')[0] }}.</p>
 
       <div class="flex flex-wrap gap-2 pt-1">
-        <button class="rounded-lg border border-black/15 px-3 py-1.5 text-sm font-medium hover:border-ink" @click="ui.view = ui.view === 'list' ? 'list' : 'chart'; reveal(v)">Show in org</button>
-        <button v-if="o.childCount[v] > 0" class="rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-white hover:bg-ink/85" @click="analyze(v)">
-          Analyze this org →
+        <button class="rounded-lg border border-black/15 px-3 py-2 text-sm font-medium hover:border-ink sm:py-1.5" @click="ui.view = ui.view === 'list' ? 'list' : 'chart'; reveal(v)">Show in org</button>
+        <button v-if="o.childCount[v] > 0" class="rounded-lg bg-ink px-3 py-2 text-sm font-medium text-white hover:bg-ink/85 sm:py-1.5" @click="analyze(v)">
+          Analyze this org
         </button>
       </div>
     </div>

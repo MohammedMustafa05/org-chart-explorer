@@ -1,12 +1,16 @@
 <script setup>
-import { computed } from 'vue'
-import { tip } from '../lib/tooltip.js'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { tip, hideTip } from '../lib/tooltip.js'
+
+// Touch has no mouseleave, so a tapped tooltip would otherwise stay put while scrolling
+onMounted(() => window.addEventListener('scroll', hideTip, { capture: true, passive: true }))
+onBeforeUnmount(() => window.removeEventListener('scroll', hideTip, { capture: true }))
 
 // Keep the tooltip on screen: flip left/up near the right/bottom edges
 const style = computed(() => {
   const w = typeof window !== 'undefined' ? window.innerWidth : 1200
   const h = typeof window !== 'undefined' ? window.innerHeight : 800
-  const left = tip.x > w - 240 ? tip.x - 236 : tip.x + 14
+  const left = Math.max(8, tip.x > w - 240 ? tip.x - 236 : tip.x + 14)
   const top = tip.y > h - 160 ? tip.y - 120 : tip.y + 14
   return { left: `${left}px`, top: `${top}px` }
 })
