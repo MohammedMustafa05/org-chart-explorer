@@ -1,0 +1,127 @@
+# Giga Corp — Org Chart & Cost Analytics
+
+Vue 3 + Tailwind app that turns a flat people CSV (40k rows) into an
+interactive reporting hierarchy, with per-person descendant counts and cost
+metrics, plus a cost-analytics view.
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm test           # metric tests, incl. a brute-force check on the 40k file
+```
+
+## Views
+
+**Org chart.** Pan by dragging or scrolling, pinch or ⌘/Ctrl-scroll to zoom,
+and use the arrow keys, `+`/`-` and `0` (fit). Every card shows:
+- **Reports**: descendants.
+- **Managers**: non-leaf descendants.
+- **Org cost**.
+
+Expanding a manager keeps their card fixed on screen. Individual contributors
+who share a manager are packed into one team block rather than a single
+very wide row. Selecting a person highlights their chain of command.
+
+**List.** The same tree as a virtualised outline, the default on phones. Arrow
+keys expand and collapse rows.
+
+**Person panel.**
+- descendants and non-leaf descendants
+- management cost, IC cost, total cost and management cost ratio
+- a clickable "reports up to" chain
+- "Analyze this org", which scopes the analytics view to that person
+
+**Search.** Find anyone by name, title or department. The chart expands the
+path to them and centres on them.
+
+**Cost analytics (bonus).** Scoped to the whole company or any manager's org.
+- **KPI tiles:** total, management and IC cost, management cost ratio, average
+  span of control, and layers.
+- **Where the money goes:** a treemap of each direct report's org, sized by
+  cost and shaded by management share. Click a tile to drill in.
+- **Cost by department:** management vs IC, stacked.
+- **Layer pyramid:** managers vs ICs at each layer, flagged as top-heavy,
+  bottom-heavy or balanced.
+- **Span of control distribution.**
+- **Org design flags:** managers with a single report (possibly collapsible
+  layers) and managers with 13+ reports.
+- **Headcount heatmap:** department × layer.
+- **Export CSV:** every person in scope, with all computed metrics.
+
+## How the metrics are computed
+
+`src/lib/hierarchy.js` builds everything in **one O(n) pass, with no
+recursion**:
+
+1. Rows are indexed by id. Manager references resolve by id, or by name as a
+   fallback. Reporting cycles are detected and cut, and multiple top-level
+   people are joined under one company node.
+2. Children are packed into a single `Int32Array` (CSR layout), and every
+   metric lives in typed arrays. That avoids 40k objects with child arrays.
+3. A breadth-first walk produces an order where parents come before children.
+   Walking it **backwards** visits each child before its parent, so each node
+   adds its finished totals into its parent exactly once:
+
+```
+descendants[p]        += 1 + descendants[c]
+nonLeafDescendants[p] += (c is manager) + nonLeafDescendants[c]
+managementCost[p]     += (c is manager ? salary[c] : 0) + managementCost[c]
+icCost[p]             += (c is IC ? salary[c] : 0) + icCost[c]
+totalCost[p]          += salary[c] + totalCost[c]
+```
+
+Every node's values are computed once at load, about 90 ms for 40k people, and
+read in O(1) afterwards. Expanding or collapsing never recalculates anything.
+
+**Rendering also scales.**
+- The chart lays out only the expanded part of the tree, with
+  [`d3-flextree`](https://github.com/Klortho/d3-flextree) for variable-size
+  nodes.
+- It mounts only the cards inside the viewport (culling).
+- The list view is virtualised.
+
+### Definitions
+
+| Metric | Definition |
+|---|---|
+| Descendants | Everyone below the person, directly or indirectly |
+| Non-leaf descendants | Descendants who have at least one report |
+| Management cost | Sum of salaries of non-leaf descendants |
+| IC cost | Sum of salaries of leaf descendants |
+| Total cost | Sum of salaries of all descendants (= management + IC) |
+| Management cost ratio | IC cost ÷ management cost, i.e. IC dollars per management dollar. Shown as "—" when nobody below is a manager |
+
+The person's own salary is not part of their own costs, matching "sum of the
+salary of every descendant".
+
+## Data
+
+`public/giga-corp.csv` is loaded on start. **Replace it with the Giga Corp
+export**, or use **Load CSV** or drag and drop a file onto the page.
+
+**Column detection.** Columns are detected from common header names:
+- Employee Id / Email
+- Manager / Manager Id / Reports To
+- Name or First + Last
+- Job Title
+- Department
+- Location
+- Salary
+
+Salaries like `$120,000` are parsed. If the ID or manager column can't be
+recognised, the app asks you to map the columns.
+
+**Sample data.** The bundled file is a deterministic 40,001-person sample made
+by `npm run generate-data`, so the app runs before the real file is added.
+
+## Structure
+
+```
+src/lib/hierarchy.js    build + single-pass metrics (pure, tested)
+src/lib/csv.js          CSV parsing + column detection
+src/lib/layout.js       chart layout (flextree + IC team blocks)
+src/lib/analytics.js    subtree analytics + CSV export
+src/lib/store.js        app state (org kept in a shallowRef, never deep-reactive)
+src/components/         OrgChart, NodeCard, OrgList, PersonPanel, AnalyticsView
+tests/                  node:test suite
+```
