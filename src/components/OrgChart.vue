@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, shallowRef } from 'vue'
 import { org, ui, expandedVersion, isExpanded, toggle, select, collapseAll, expandNextLevel } from '../lib/store.js'
 import { layoutOrg, CARD_W, GAP_Y } from '../lib/layout.js'
-import { pathTo } from '../lib/hierarchy.js'
+import { pathTo, childrenOf } from '../lib/hierarchy.js'
 import { count } from '../lib/format.js'
 import NodeCard from './NodeCard.vue'
 
@@ -13,7 +13,8 @@ const size = ref({ w: 800, h: 600 })
 const t = ref({ x: 0, y: 40, k: 0.85 }) // world -> screen transform
 const animate = ref(false)
 const layout = shallowRef(layoutOrg(org.value, isExpanded))
-let anchor = null // keeps a toggled card fixed on screen across relayouts
+let anchor = null // keeps a collapsed card fixed on screen across relayouts
+let opened = null // a just-expanded card to bring into view with its reports
 
 watch(expandedVersion, () => {
   const before = anchor != null ? layout.value.pos.get(anchor) : null
@@ -22,12 +23,38 @@ watch(expandedVersion, () => {
   if (before && after) {
     t.value = { ...t.value, x: t.value.x - (after.left - before.left) * t.value.k, y: t.value.y - (after.top - before.top) * t.value.k }
   }
-  anchor = null
+  if (opened != null) showWithReports(opened)
+  anchor = opened = null
 })
 
 function onToggle(v) {
-  anchor = v
+  if (isExpanded(v)) anchor = v
+  else opened = v
   toggle(v)
+}
+
+// Centre an expanded manager and fit the first row of their reports below
+// them. A team block can be many cards tall, so only its first row counts.
+function showWithReports(v) {
+  const { pos, groups } = layout.value
+  const me = pos.get(v)
+  const kids = childrenOf(org.value, v).map((c) => pos.get(c)).filter(Boolean)
+  if (!me || !kids.length) return
+  const teamTop = Math.min(...kids.filter((b) => b.grouped).map((b) => b.top))
+  const row = kids.filter((b) => !b.grouped || b.top === teamTop)
+  const team = groups.find((g) => g.manager === v)
+  const left = Math.min(...row.map((b) => b.left), team?.left ?? Infinity)
+  const right = Math.max(...row.map((b) => b.left + b.w), team ? team.left + team.w : -Infinity)
+  const top = me.top - 30 // room for the avatar above the card
+  const bottom = Math.max(...row.map((b) => b.top + b.h)) + 24
+  const cx = me.left + me.w / 2
+  // Keep the manager centred, so the row needs room on both sides of them
+  const halfW = Math.max(cx - left, right - cx) + 16
+  const barH = (toolbar.value?.offsetHeight ?? 40) + 24
+  const k = clampK(Math.min((size.value.w / 2) / halfW, (size.value.h - barH - 64) / (bottom - top), 1))
+  touched = true
+  smooth()
+  t.value = { k, x: size.value.w / 2 - cx * k, y: barH + (size.value.h - barH - 64 - (bottom - top) * k) / 2 - top * k }
 }
 
 // ---- viewport culling: only cards intersecting the screen are in the DOM

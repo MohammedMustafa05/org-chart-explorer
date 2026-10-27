@@ -24,7 +24,8 @@ follow the assessment's example, tinted by department:
   pill that expands and collapses their reports.
 - Individual contributors: their salary.
 
-Expanding a manager keeps their card fixed on screen. Individual contributors
+Expanding a manager centres them and fits their row of reports on screen;
+collapsing keeps their card where it is. Individual contributors
 who share a manager are packed into one team block rather than a single
 very wide row. Selecting a person highlights their chain of command.
 
