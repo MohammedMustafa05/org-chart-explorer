@@ -517,7 +517,7 @@ function showInChart(v) {
       <!-- flags -->
       <section class="rounded-xl border border-black/10 bg-white p-4 md:p-5">
         <h2 class="font-semibold">Org design flags</h2>
-        <p class="mb-3 text-xs text-ink-2">Places worth a closer look before the next planning cycle</p>
+        <p class="mb-3 text-xs text-ink-2">Spans at either extreme, which are often worth reviewing</p>
         <div class="grid gap-5 text-sm md:grid-cols-2">
           <div>
             <div class="flex items-baseline justify-between">

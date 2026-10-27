@@ -19,7 +19,7 @@ const ALIASES = {
 const norm = (h) => h.toLowerCase().replace(/[^a-z0-9]/g, '')
 
 /** Map semantic fields to the CSV's actual header names. */
-export function detectColumns(headers) {
+function detectColumns(headers) {
   const byNorm = new Map(headers.map((h) => [norm(h), h]))
   const cols = {}
   for (const [field, aliases] of Object.entries(ALIASES)) {
@@ -46,5 +46,5 @@ export function parseCsv(text) {
     cols.name = '__name'
   }
   const missing = ['id', 'manager'].filter((f) => !cols[f])
-  return { rows, headers, cols, missing, errors: result.errors.slice(0, 5) }
+  return { rows, headers, cols, missing }
 }

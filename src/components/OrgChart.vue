@@ -185,6 +185,12 @@ watch(
   () => nextTick(() => centerOn(ui.selected)),
 )
 
+// The layout updates on the next render, so fit once it has
+function collapseAndFit() {
+  collapseAll()
+  nextTick(() => fit())
+}
+
 // keyboard: arrows pan, +/- zoom, 0 fits
 function onKey(e) {
   const step = 80
@@ -277,7 +283,7 @@ const shown = computed(() => layout.value.cards.length)
     <div ref="toolbar" class="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start justify-between gap-2">
       <div class="pointer-events-auto flex items-center gap-1 rounded-xl border border-black/10 bg-white/95 p-1 text-sm shadow-sm">
         <button class="rounded-lg px-3 py-2 font-medium hover:bg-black/5 sm:py-1.5" @click="expandNextLevel()">Expand a level</button>
-        <button class="rounded-lg px-3 py-2 font-medium hover:bg-black/5 sm:py-1.5" @click="collapseAll(); fit()">Collapse all</button>
+        <button class="rounded-lg px-3 py-2 font-medium hover:bg-black/5 sm:py-1.5" @click="collapseAndFit">Collapse all</button>
       </div>
       <div class="pointer-events-auto rounded-xl border border-black/10 bg-white/95 px-3 py-2 text-xs text-ink-2 shadow-sm">
         <span class="tabular font-semibold text-ink">{{ count(shown) }}</span> of {{ count(org.realCount) }} people shown

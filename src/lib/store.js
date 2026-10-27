@@ -18,11 +18,11 @@ export const ui = reactive({
   selected: -1,
   scope: -1, // analytics subtree
   focusRequest: 0, // bumped to ask the chart to centre on ui.selected
-  loadMs: 0,
   loadId: 0, // bumped per loaded file so views remount cleanly
   pending: null, // { rows, headers, cols } awaiting manual column mapping
   progress: null, // { loaded, total } bytes while the default file downloads
   source: null, // last URL list, so a failed load can be retried
+  notice: '', // data problems found while building, shown once after load
 })
 
 export const deptColor = new Map()
@@ -161,9 +161,7 @@ export function applyMapping(cols) {
 }
 
 function finish(rows, cols) {
-  const t0 = performance.now()
   const built = buildOrg(rows, cols)
-  ui.loadMs = performance.now() - t0
   if (built.root === -1) {
     ui.status = 'error'
     ui.error = 'No people found in that file.'
@@ -177,6 +175,7 @@ function finish(rows, cols) {
     .sort((a, b) => b[1] - a[1])
     .forEach(([d], i) => deptColor.set(d, SERIES[i] ?? OTHER))
 
+  ui.notice = describeWarnings(built.warnings)
   built.search = built.people.map((p) => `${p.name} ${p.title} ${p.department} ${p.id}`.toLowerCase())
   org.value = markRaw(built)
   expanded.clear()
@@ -188,6 +187,16 @@ function finish(rows, cols) {
   ui.loadId++
   ui.status = 'ready'
   applyHash()
+}
+
+function describeWarnings(w) {
+  const plural = (n, one, many) => `${n.toLocaleString()} ${n === 1 ? one : many}`
+  const parts = []
+  if (w.duplicateIds) parts.push(`${plural(w.duplicateIds, 'row', 'rows')} with a duplicate ID skipped`)
+  if (w.missingManagers) parts.push(`${plural(w.missingManagers, 'manager', 'managers')} not found, so those people are shown at the top level`)
+  if (w.cycles) parts.push(`${plural(w.cycles, 'reporting loop', 'reporting loops')} broken`)
+  if (w.invalidSalaries) parts.push(`${plural(w.invalidSalaries, 'salary', 'salaries')} couldn't be read and count as $0`)
+  return parts.length ? `Some rows needed fixing: ${parts.join('; ')}.` : ''
 }
 
 // ---- URL state: #/view?person=<id>&scope=<id>, so views can be shared and

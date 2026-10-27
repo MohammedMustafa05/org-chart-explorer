@@ -12,8 +12,8 @@ export function initials(name) {
   return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase()
 }
 
-// Categorical slots in fixed order (validated palette); departments beyond
-// eight fold into neutral "other" ink instead of generating new hues.
+// Department colours in a fixed order, chosen to stay distinct from each other;
+// departments past the eighth share the neutral "other" grey.
 export const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948']
 export const OTHER = '#6b6a65'
 export const MGMT_COLOR = SERIES[0]

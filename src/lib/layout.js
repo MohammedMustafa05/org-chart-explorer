@@ -1,10 +1,10 @@
 import { flextree } from 'd3-flextree'
 
 export const CARD_W = 236
-export const MANAGER_H = 288 // identity, three tag rows and four cost pills
-export const IC_H = 168 // identity, three tag rows and salary
-export const AVATAR = 44 // sits half above the card's top edge
-export const GAP_X = 20 // between sibling cards
+const MANAGER_H = 288 // identity, three tag rows and four cost pills
+const IC_H = 168 // identity, three tag rows and salary
+const AVATAR = 44 // sits half above the card's top edge
+const GAP_X = 20 // between sibling cards
 export const GAP_Y = 72 // between a manager and their reports (includes the avatar overhang)
 const GROUP_PAD = 14
 const GROUP_HEAD = 30 + AVATAR / 2 // label row inside an IC group, plus room for the first avatar

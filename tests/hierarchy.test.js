@@ -1,8 +1,19 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { buildOrg, managementCostRatio, forEachInSubtree } from '../src/lib/hierarchy.js'
 import { parseCsv } from '../src/lib/csv.js'
+
+// The 40k file is gitignored on main (see README); fetch it from the data branch when it isn't local
+const LOCAL = new URL('../public/giga-corp.csv', import.meta.url)
+const DATA_URL = 'https://raw.githubusercontent.com/MohammedMustafa05/org-chart-explorer/data/giga-corp.csv'
+async function loadSample() {
+  if (existsSync(LOCAL)) return readFileSync(LOCAL, 'utf8')
+  const res = await fetch(DATA_URL).catch(() => null)
+  return res?.ok ? res.text() : null
+}
+const sample = await loadSample()
+const noSample = !sample && 'giga-corp.csv is not in public/ and could not be downloaded'
 
 const cols = { id: 'id', manager: 'mgr', name: 'name', salary: 'salary' }
 const row = (id, mgr, salary) => ({ id, mgr, name: id, salary: String(salary) })
@@ -42,8 +53,21 @@ test('joins multiple roots under one company node and survives cycles', () => {
   assert.equal(org.warnings.cycles, 1)
 })
 
-test('matches a brute-force count on the 40k sample', () => {
-  const { rows, cols: c } = parseCsv(readFileSync(new URL('../public/giga-corp.csv', import.meta.url), 'utf8'))
+test('skips duplicate ids, keeps people with unknown managers, parses formatted salaries', () => {
+  const org = buildOrg([row('A', '', '$120,000'), row('B', 'A', '50,000'), row('B', 'A', 1), row('C', 'nobody', 'n/a')], cols)
+  assert.equal(org.warnings.duplicateIds, 1)
+  assert.equal(org.warnings.missingManagers, 1)
+  assert.equal(org.warnings.invalidSalaries, 1)
+  assert.equal(org.realCount, 3)
+  // A and C are both top level, so they're joined under the company node
+  assert.ok(org.people[org.root].virtual)
+  const a = org.people.find((p) => p.id === 'A').i
+  assert.equal(org.people[a].salary, 120000)
+  assert.equal(org.totalCost[a], 50000)
+})
+
+test('matches a brute-force count on the 40k sample', { skip: noSample }, () => {
+  const { rows, cols: c } = parseCsv(sample)
   const t0 = performance.now()
   const org = buildOrg(rows, c)
   const ms = performance.now() - t0
@@ -61,9 +85,9 @@ test('matches a brute-force count on the 40k sample', () => {
   }
 })
 
-test('agrees with d3-hierarchy stratify + sum on every node of the real file', async () => {
+test('agrees with d3-hierarchy stratify + sum on every node of the real file', { skip: noSample }, async () => {
   const { stratify } = await import('d3-hierarchy')
-  const { rows, cols: c } = parseCsv(readFileSync(new URL('../public/giga-corp.csv', import.meta.url), 'utf8'))
+  const { rows, cols: c } = parseCsv(sample)
   const org = buildOrg(rows, c)
   const root = stratify()
     .id((r) => r[c.id])

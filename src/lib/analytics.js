@@ -12,7 +12,7 @@ export const SPAN_BUCKETS = [
 const spanBucket = (n) => SPAN_BUCKETS.findIndex((b) => n >= b.min && n <= b.max)
 
 // Dimensions people can be grouped by, when the CSV has them
-export const DIMENSIONS = [
+const DIMENSIONS = [
   { key: 'department', label: 'Department' },
   { key: 'entity', label: 'Entity' },
   { key: 'location', label: 'Location' },

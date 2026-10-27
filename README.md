@@ -1,13 +1,16 @@
-# Giga Corp — Org Chart & Cost Analytics
+# Giga Corp org chart and cost analytics
 
 Vue 3 + Tailwind app that turns a flat people CSV (40k rows) into an
 interactive reporting hierarchy, with per-person descendant counts and cost
 metrics, plus a cost-analytics view.
 
+Run it in the browser: [StackBlitz](https://stackblitz.com/github/MohammedMustafa05/org-chart-explorer)
+
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # metric tests, incl. a brute-force check on the 40k file
+npm test           # metric tests, incl. checks against the 40k file
+npm run bench      # build time on synthetic orgs up to 1M people
 ```
 
 ## Views
@@ -100,12 +103,35 @@ cost against the single pass. d3 is also used for layout: `partition`
 poor fit as the main store for 40k people, which is why the metrics live in
 typed arrays.
 
-**Rendering also scales.**
-- The chart lays out only the expanded part of the tree, with
+## Scalability
+
+`npm run bench` times the build on synthetic orgs (Node 22, Apple M4):
+
+| People | Random tree | Single chain |
+|---|---|---|
+| 40,000 | 42 ms | 22 ms |
+| 400,000 | 0.5 s | 0.35 s |
+| 1,000,000 | 2.1 s | 2.3 s |
+
+Time grows linearly with headcount. The single chain is the deepest org
+possible; because nothing recurses, a million levels deep is fine.
+
+- **Memory.** Metrics live in typed arrays and children in one packed array,
+  instead of an object and child list per person. The org sits in a
+  `shallowRef` with `markRaw`, so Vue never makes 40k records reactive.
+- **After load, everything is a lookup.** Opening a person, expanding a team
+  or switching views reads precomputed values; nothing is recalculated.
+- **Rendering is bounded by the screen, not the org.** The chart lays out only
+  the expanded part of the tree (with
   [`d3-flextree`](https://github.com/Klortho/d3-flextree) for variable-size
-  nodes.
-- It mounts only the cards inside the viewport (culling).
-- The list view is virtualised.
+  cards) and mounts only the cards in view. "Expand a level" stops at 3,000
+  visible people, and the list view is virtualised.
+
+**Next steps for much larger orgs.** Around a million people, parsing the CSV
+on the main thread becomes the bottleneck. I'd move parsing and the build
+into a Web Worker, index search (it currently scans every row, about a
+millisecond at 40k), and beyond that compute totals server-side and load
+teams on demand as they're expanded.
 
 ### Definitions
 
@@ -120,6 +146,18 @@ typed arrays.
 
 The person's own salary is not part of their own costs, matching "sum of the
 salary of every descendant".
+
+### Decisions
+
+- **Management cost ratio.** The brief defines it as "the ratio between
+  individual contributors and managers", alongside the other salary-based
+  costs, so it's IC cost ÷ management cost. The example screenshot in the
+  brief shows management cost ÷ total cost instead (0.25 on its CEO card).
+  I followed the written definition; switching is a one-line change in
+  `managementCostRatio`.
+- **Individual contributors' cards show "Salary".** By the definitions above,
+  someone with no reports has $0 IC cost, so the figure on their card is
+  their own salary.
 
 ## Data
 
@@ -143,12 +181,18 @@ imports into StackBlitz. The app loads `public/giga-corp.csv` if it exists
 Salaries like `$120,000` are parsed. If the ID or manager column can't be
 recognised, the app asks you to map the columns.
 
-**Robustness.** Duplicate IDs, unknown managers and reporting cycles are
-handled rather than crashing. Several top-level people are joined under one
-company node.
+**Robustness.** Duplicate IDs are skipped, people whose manager can't be found
+are placed at the top level, reporting cycles are cut, and unreadable salaries
+count as $0. A notice after loading says how many rows were affected. Several
+top-level people are joined under one company node.
+
+**Tests and data.** `npm test` uses `public/giga-corp.csv` if present and
+otherwise downloads it from the `data` branch. Offline, the two tests that
+need it are skipped.
 
 **Synthetic data.** `npm run generate-data` writes a deterministic synthetic
-org instead, for testing other shapes. It overwrites the file above.
+org to `public/synthetic-org.csv` for trying other shapes; load it with
+**Load CSV**.
 
 ## Structure
 
@@ -160,4 +204,5 @@ src/lib/analytics.js    subtree analytics + CSV export
 src/lib/store.js        app state (org kept in a shallowRef, never deep-reactive)
 src/components/         OrgChart, NodeCard, OrgList, PersonPanel, AnalyticsView
 tests/                  node:test suite
+scripts/                synthetic data generator, benchmark
 ```

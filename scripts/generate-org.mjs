@@ -1,14 +1,14 @@
-// Generates a deterministic, realistic sample org (default 40,000 people) at
-// public/giga-corp.csv so the app runs out of the box. Replace that file with
-// the real Giga Corp export (or drop the CSV into the app) to use real data.
+// Generates a deterministic synthetic org (default 40,000 people) at
+// public/synthetic-org.csv, for trying the app on a different shape of org.
+// Load it with "Load CSV" or by dropping it onto the page.
 //
-// Usage: node scripts/generate-giga-corp.mjs [count]
+// Usage: node scripts/generate-org.mjs [count]
 
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const TARGET = Number(process.argv[2] ?? 40000)
-const OUT = fileURLToPath(new URL('../public/giga-corp.csv', import.meta.url))
+const OUT = fileURLToPath(new URL('../public/synthetic-org.csv', import.meta.url))
 
 // mulberry32: small seeded PRNG so every run produces the same org
 let seed = 20241127

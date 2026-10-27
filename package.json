@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",
-    "generate-data": "node scripts/generate-giga-corp.mjs 40000"
+    "generate-data": "node scripts/generate-org.mjs 40000",
+    "bench": "node --max-old-space-size=4096 scripts/bench.mjs"
   },
   "dependencies": {
     "d3-flextree": "2.1.2",

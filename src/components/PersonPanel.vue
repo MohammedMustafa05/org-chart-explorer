@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { org, ui, reveal, analyze, deptColor } from '../lib/store.js'
 import { pathTo, managementCostRatio } from '../lib/hierarchy.js'
-import { count, money, moneyFull, ratio, initials, onColor, OTHER, MGMT_COLOR, IC_COLOR } from '../lib/format.js'
+import { count, moneyFull, ratio, initials, onColor, OTHER, MGMT_COLOR, IC_COLOR } from '../lib/format.js'
 
 defineEmits(['close'])
 const o = org.value
@@ -91,7 +91,7 @@ const color = computed(() => (p.value.virtual ? '#0b0b0b' : deptColor.get(p.valu
           {{ mcr == null ? 'No managers below this person.' : `$${mcr.toFixed(2)} of IC salary for every $1 of management salary.` }}
         </p>
       </div>
-      <p v-else class="text-sm text-ink-2">Individual contributor — no one reports to {{ p.name.split(' ')[0] }}.</p>
+      <p v-else class="text-sm text-ink-2">Individual contributor. No one reports to {{ p.name.split(' ')[0] }}.</p>
 
       <div class="flex flex-wrap gap-2 pt-1">
         <button class="rounded-lg border border-black/15 px-3 py-2 text-sm font-medium hover:border-ink sm:py-1.5" @click="ui.view = 'chart'; reveal(v)">Show in org</button>

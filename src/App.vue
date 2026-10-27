@@ -200,6 +200,11 @@ const views = [
       <input ref="fileInput" type="file" accept=".csv,text/csv" class="hidden" @change="readFile($event.target.files[0])" />
     </header>
 
+    <div v-if="ui.notice && ui.status === 'ready'" class="flex items-start gap-3 border-b border-[#eda100]/40 bg-[#fdf6e3] px-4 py-2 text-sm" role="status">
+      <p class="min-w-0 flex-1">{{ ui.notice }}</p>
+      <button class="-my-1 shrink-0 rounded-md px-2 py-1 font-medium text-ink-2 hover:bg-black/5 hover:text-ink" @click="ui.notice = ''">Dismiss</button>
+    </div>
+
     <!-- body -->
     <main id="main" tabindex="-1" class="relative flex min-h-0 flex-1 outline-none">
       <div v-if="ui.status === 'loading' || ui.status === 'idle'" class="flex flex-1 items-center justify-center p-6 text-center text-sm text-ink-2" role="status" aria-live="polite">

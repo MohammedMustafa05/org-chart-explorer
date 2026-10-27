@@ -124,7 +124,6 @@ export function buildOrg(rows, cols) {
   const managementCost = new Float64Array(size)
   const icCost = new Float64Array(size)
   const totalCost = new Float64Array(size)
-  const height = new Int32Array(size) // layers below this node
 
   for (let k = tail - 1; k > 0; k--) {
     const v = order[k]
@@ -135,7 +134,6 @@ export function buildOrg(rows, cols) {
     managementCost[p] += (isManager ? salary[v] : 0) + managementCost[v]
     icCost[p] += (isManager ? 0 : salary[v]) + icCost[v]
     totalCost[p] += salary[v] + totalCost[v]
-    if (height[v] + 1 > height[p]) height[p] = height[v] + 1
   }
 
   // Display order: managers with the biggest orgs first, then ICs by name
@@ -156,11 +154,9 @@ export function buildOrg(rows, cols) {
     realCount: people.filter((p) => !p.virtual).length,
     parent,
     depth,
-    height,
     childStart,
     childList,
     childCount,
-    order: order.subarray(0, tail),
     descendants,
     nonLeafDescendants,
     managementCost,
