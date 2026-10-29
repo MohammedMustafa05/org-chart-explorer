@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue'
 import { treemap, hierarchy, treemapSquarify } from 'd3-hierarchy'
 import { org, ui, reveal, select } from '../lib/store.js'
 import { pathTo } from '../lib/hierarchy.js'
@@ -83,6 +83,15 @@ const CHARTS = [
 const chart = ref('cost')
 const asPct = ref(false)
 const showTable = ref(false)
+// The chart and the table differ in height and the switch sits below them, so
+// hold the switch where it was on screen instead of letting the page jump
+const tableToggle = ref(null)
+async function toggleTable() {
+  const top = tableToggle.value.getBoundingClientRect().top
+  showTable.value = !showTable.value
+  await nextTick()
+  scroller.value.scrollTop += tableToggle.value.getBoundingClientRect().top - top
+}
 const showAll = ref(false)
 watch([groupBy, chart], () => (showAll.value = false))
 
@@ -446,8 +455,8 @@ function showInChart(v) {
         </div>
 
         <div class="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3">
-          <label class="flex cursor-pointer items-center gap-2 text-sm text-ink-2">
-            <input v-model="showTable" type="checkbox" class="peer sr-only" />
+          <label ref="tableToggle" class="relative flex cursor-pointer items-center gap-2 text-sm text-ink-2">
+            <input :checked="showTable" type="checkbox" class="peer sr-only" @change="toggleTable" />
             <span class="relative h-5 w-9 rounded-full bg-black/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-4 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-ink" />
             Show table
           </label>
